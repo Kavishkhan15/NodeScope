@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}IP Conflicts{% endblock %}
+{% block page_title %}<i class="bi bi-exclamation-triangle-fill me-2"></i>IP Conflicts{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-info">
+  <i class="bi bi-info-circle me-2"></i>
+  <strong>About IP Conflict Detection:</strong>
+  NodeScope flags IP addresses observed responding from multiple MAC addresses.
+  This <em>may</em> indicate a conflict, but can also be caused by ARP caching,
+  proxy ARP, virtual machines, or MAC randomisation. Always investigate before
+  taking action.
+</div>
+
+<!-- Status filter tabs -->
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a class="nav-link {% if status_filter == 'all' %}active{% endif %}"
+       href="{{ url_for('conflicts.list_conflicts') }}">
+      All
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if status_filter == 'possible_conflict' %}active{% endif %}"
+       href="{{ url_for('conflicts.list_conflicts', status='possible_conflict') }}">
+      <span class="badge ns-badge-conflict me-1">•</span>Possible Conflict
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if status_filter == 'under_investigation' %}active{% endif %}"
+       href="{{ url_for('conflicts.list_conflicts', status='under_investigation') }}">
+      <span class="badge bg-warning me-1">•</span>Under Investigation
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if status_filter == 'resolved' %}active{% endif %}"
+       href="{{ url_for('conflicts.list_conflicts', status='resolved') }}">
+      <span class="badge ns-badge-approved me-1">•</span>Resolved
+    </a>
+  </li>
+</ul>
+
+<div class="card ns-card">
+  {% if conflicts %}
+  <div class="table-responsive">
+    <table class="table table-hover ns-table mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Conflicting IP</th>
+          <th>MAC Address 1</th>
+          <th>MAC Address 2</th>
+          <th>First Seen</th>
+          <th>Last Seen</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in conflicts %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td><code>{{ c.ip_address }}</code></td>
+          <td><code class="text-uppercase">{{ c.mac_address_1 }}</code></td>
+          <td><code class="text-uppercase">{{ c.mac_address_2 }}</code></td>
+          <td class="text-muted small">{{ c.first_seen[:16] }}</td>
+          <td class="text-muted small">{{ c.last_seen[:16] }}</td>
+          <td>
+            {% if c.status == 'possible_conflict' %}
+              <span class="badge ns-badge-conflict">Possible Conflict</span>
+            {% elif c.status == 'under_investigation' %}
+              <span class="badge bg-warning text-dark">Under Investigation</span>
+            {% else %}
+              <span class="badge ns-badge-approved">Resolved</span>
+            {% endif %}
+            {% if c.is_demo %}<span class="badge ns-badge-demo ms-1">demo</span>{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('conflicts.conflict_detail', conflict_id=c.id) }}"
+               class="btn btn-xs btn-outline-primary">
+              <i class="bi bi-eye me-1"></i>Investigate
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body">
+    <div class="ns-empty-state">
+      <i class="bi bi-check-circle"></i>
+      <p>No IP conflicts found.{% if status_filter != 'all' %} No conflicts with status "{{ status_filter }}".{% endif %}</p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

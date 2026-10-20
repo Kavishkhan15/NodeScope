@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Alerts{% endblock %}
+{% block page_title %}<i class="bi bi-bell-fill me-2"></i>Alerts{% endblock %}
+
+{% block content %}
+
+<div class="card ns-card">
+  <div class="card-header ns-card-header">
+    <i class="bi bi-bell me-2"></i>{{ alerts | length }} Alert{% if alerts | length != 1 %}s{% endif %}
+  </div>
+
+  {% if alerts %}
+  <div class="table-responsive">
+    <table class="table table-hover ns-table mb-0">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>Type</th>
+          <th>IP / MAC</th>
+          <th>Message</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for alert in alerts %}
+        <tr class="{% if alert.status == 'dismissed' %}text-muted{% endif %}">
+          <td>
+            {% if alert.status == 'active' %}
+              <span class="badge bg-danger">Active</span>
+            {% elif alert.status == 'acknowledged' %}
+              <span class="badge bg-warning text-dark">Acknowledged</span>
+            {% else %}
+              <span class="badge bg-secondary">Dismissed</span>
+            {% endif %}
+            {% if alert.is_demo %}<span class="badge ns-badge-demo ms-1">demo</span>{% endif %}
+          </td>
+          <td>
+            {% if alert.alert_type == 'unknown_device' %}
+              <span class="badge ns-badge-unknown"><i class="bi bi-question-circle me-1"></i>Unknown Device</span>
+            {% elif alert.alert_type == 'ip_conflict' %}
+              <span class="badge ns-badge-conflict"><i class="bi bi-exclamation-triangle me-1"></i>IP Conflict</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ alert.alert_type | replace('_',' ') | title }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if alert.ip_address %}<code>{{ alert.ip_address }}</code><br>{% endif %}
+            {% if alert.device_mac %}<code class="small">{{ alert.device_mac }}</code>{% endif %}
+          </td>
+          <td>{{ alert.message }}</td>
+          <td class="text-muted small" style="white-space:nowrap">{{ alert.created_at[:16] }}</td>
+          <td>
+            {% if alert.status == 'active' %}
+            <form method="post" action="{{ url_for('history.acknowledge', alert_id=alert.id) }}"
+                  class="d-inline">
+              <button type="submit" class="btn btn-xs btn-outline-warning me-1"
+                      title="Acknowledge">
+                <i class="bi bi-eye-fill"></i>
+              </button>
+            </form>
+            <form method="post" action="{{ url_for('history.dismiss', alert_id=alert.id) }}"
+                  class="d-inline">
+              <button type="submit" class="btn btn-xs btn-outline-secondary"
+                      title="Dismiss"
+                      onclick="return confirm('Dismiss this alert?')">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </form>
+            {% elif alert.status == 'acknowledged' %}
+            <form method="post" action="{{ url_for('history.dismiss', alert_id=alert.id) }}"
+                  class="d-inline">
+              <button type="submit" class="btn btn-xs btn-outline-secondary"
+                      title="Dismiss">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body">
+    <div class="ns-empty-state">
+      <i class="bi bi-bell-slash"></i>
+      <p>No alerts. Run a network scan to detect unknown devices and IP conflicts.</p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

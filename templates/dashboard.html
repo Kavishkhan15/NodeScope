@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}<i class="bi bi-grid-1x2-fill me-2"></i>Overview Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="ns-stat-card ns-stat-blue">
+      <div class="ns-stat-icon"><i class="bi bi-hdd-network"></i></div>
+      <div class="ns-stat-body">
+        <div class="ns-stat-value">{{ stats.total }}</div>
+        <div class="ns-stat-label">Total Devices</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="ns-stat-card ns-stat-green">
+      <div class="ns-stat-icon"><i class="bi bi-shield-check"></i></div>
+      <div class="ns-stat-body">
+        <div class="ns-stat-value">{{ stats.approved }}</div>
+        <div class="ns-stat-label">Approved</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="ns-stat-card ns-stat-orange">
+      <div class="ns-stat-icon"><i class="bi bi-question-circle"></i></div>
+      <div class="ns-stat-body">
+        <div class="ns-stat-value">{{ stats.unknown }}</div>
+        <div class="ns-stat-label">Unknown / Needs Review</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="ns-stat-card ns-stat-red">
+      <div class="ns-stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="ns-stat-body">
+        <div class="ns-stat-value">{{ active_conflicts }}</div>
+        <div class="ns-stat-label">Active IP Conflicts</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Latest scan + quick actions -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-7">
+    <div class="card ns-card h-100">
+      <div class="card-header ns-card-header">
+        <i class="bi bi-radar me-2"></i>Latest Scan Status
+      </div>
+      <div class="card-body">
+        {% if latest_scan %}
+        <table class="table table-sm mb-0">
+          <tr>
+            <th class="text-muted" style="width:120px">Subnet</th>
+            <td><code>{{ latest_scan.subnet }}</code></td>
+          </tr>
+          <tr>
+            <th class="text-muted">Started</th>
+            <td>{{ latest_scan.started_at }}</td>
+          </tr>
+          <tr>
+            <th class="text-muted">Status</th>
+            <td>
+              {% if latest_scan.status == 'completed' %}
+                <span class="badge bg-success">Completed</span>
+              {% elif latest_scan.status == 'running' %}
+                <span class="badge bg-primary">Running</span>
+              {% else %}
+                <span class="badge bg-danger">Failed</span>
+              {% endif %}
+              {% if latest_scan.is_demo %}<span class="badge ns-badge-demo ms-1">DEMO</span>{% endif %}
+            </td>
+          </tr>
+          <tr>
+            <th class="text-muted">Devices</th>
+            <td>{{ latest_scan.device_count }}</td>
+          </tr>
+        </table>
+        {% else %}
+        <div class="ns-empty-state">
+          <i class="bi bi-radar"></i>
+          <p>No scans performed yet.</p>
+        </div>
+        {% endif %}
+      </div>
+      <div class="card-footer bg-transparent">
+        <a href="{{ url_for('scan.scan_page') }}" class="btn btn-primary btn-sm">
+          <i class="bi bi-play-fill me-1"></i>Start New Scan
+        </a>
+        {% if demo_mode or not latest_scan %}
+        <form method="post" action="{{ url_for('scan.demo_scan') }}" class="d-inline ms-2">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-flask me-1"></i>Load Demo Data
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card ns-card h-100">
+      <div class="card-header ns-card-header">
+        <i class="bi bi-lightning-fill me-2"></i>Quick Actions
+      </div>
+      <div class="card-body d-flex flex-column gap-2">
+        <a href="{{ url_for('scan.scan_page') }}" class="btn btn-outline-primary btn-sm text-start">
+          <i class="bi bi-radar me-2"></i>Scan Network
+        </a>
+        <a href="{{ url_for('inventory.list_devices') }}" class="btn btn-outline-secondary btn-sm text-start">
+          <i class="bi bi-hdd-network me-2"></i>View Device Inventory
+        </a>
+        <a href="{{ url_for('conflicts.list_conflicts') }}" class="btn btn-outline-danger btn-sm text-start">
+          <i class="bi bi-exclamation-triangle me-2"></i>Review IP Conflicts
+        </a>
+        <a href="{{ url_for('history.alerts') }}" class="btn btn-outline-warning btn-sm text-start">
+          <i class="bi bi-bell me-2"></i>Manage Alerts
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent alerts + recent activity -->
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card ns-card">
+      <div class="card-header ns-card-header">
+        <i class="bi bi-bell-fill me-2"></i>Recent Alerts
+        <a href="{{ url_for('history.alerts') }}" class="btn btn-sm btn-outline-secondary ms-auto">View All</a>
+      </div>
+      <div class="card-body p-0">
+        {% if recent_alerts %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0 ns-table">
+            <thead>
+              <tr><th>Type</th><th>Message</th><th>Time</th></tr>
+            </thead>
+            <tbody>
+              {% for alert in recent_alerts %}
+              <tr>
+                <td>
+                  {% if alert.alert_type == 'unknown_device' %}
+                    <span class="badge ns-badge-unknown"><i class="bi bi-question-circle me-1"></i>Unknown Device</span>
+                  {% elif alert.alert_type == 'ip_conflict' %}
+                    <span class="badge ns-badge-conflict"><i class="bi bi-exclamation-triangle me-1"></i>IP Conflict</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ alert.alert_type }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-truncate" style="max-width:200px" title="{{ alert.message }}">{{ alert.message }}</td>
+                <td class="text-muted small">{{ alert.created_at[:16] }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="ns-empty-state">
+          <i class="bi bi-bell-slash"></i>
+          <p>No active alerts.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card ns-card">
+      <div class="card-header ns-card-header">
+        <i class="bi bi-clock-history me-2"></i>Recent Activity
+        <a href="{{ url_for('history.history') }}" class="btn btn-sm btn-outline-secondary ms-auto">View All</a>
+      </div>
+      <div class="card-body p-0">
+        {% if recent_events %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0 ns-table">
+            <thead>
+              <tr><th>Event</th><th>Description</th><th>Time</th></tr>
+            </thead>
+            <tbody>
+              {% for event in recent_events %}
+              <tr>
+                <td><span class="badge {{ event_type_badge(event.event_type) }} small">{{ event.event_type | replace('_', ' ') | title }}</span></td>
+                <td class="text-truncate" style="max-width:200px" title="{{ event.description }}">{{ event.description }}</td>
+                <td class="text-muted small">{{ event.created_at[:16] }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="ns-empty-state">
+          <i class="bi bi-clock"></i>
+          <p>No activity recorded yet.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

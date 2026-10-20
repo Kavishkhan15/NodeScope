@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Activity History{% endblock %}
+{% block page_title %}<i class="bi bi-clock-history me-2"></i>Activity History{% endblock %}
+
+{% block content %}
+
+<!-- Event type filter -->
+<div class="card ns-card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+      <label class="fw-semibold me-2">Filter by type:</label>
+      <a href="{{ url_for('history.history') }}"
+         class="btn btn-sm {% if event_type_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        All
+      </a>
+      {% for etype in event_types %}
+      <a href="{{ url_for('history.history', type=etype) }}"
+         class="btn btn-sm {% if event_type_filter == etype %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        {{ etype | replace('_', ' ') | title }}
+      </a>
+      {% endfor %}
+    </form>
+  </div>
+</div>
+
+<div class="card ns-card">
+  <div class="card-header ns-card-header">
+    <i class="bi bi-list-ul me-2"></i>{{ events | length }} Event{% if events | length != 1 %}s{% endif %}
+  </div>
+  {% if events %}
+  <div class="table-responsive">
+    <table class="table table-hover table-striped ns-table mb-0">
+      <thead>
+        <tr><th>Time</th><th>Type</th><th>Device/IP</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        {% for event in events %}
+        <tr>
+          <td class="text-muted small" style="white-space:nowrap">{{ event.created_at[:16] }}</td>
+          <td>
+            {% set etype = event.event_type %}
+            {% if etype == 'device_discovered' %}
+              <span class="badge bg-primary">{{ etype | replace('_',' ') | title }}</span>
+            {% elif etype == 'device_not_seen' %}
+              <span class="badge bg-secondary">{{ etype | replace('_',' ') | title }}</span>
+            {% elif etype == 'ip_changed' %}
+              <span class="badge bg-warning text-dark">{{ etype | replace('_',' ') | title }}</span>
+            {% elif etype == 'conflict_detected' %}
+              <span class="badge ns-badge-conflict">{{ etype | replace('_',' ') | title }}</span>
+            {% elif etype == 'conflict_resolved' %}
+              <span class="badge ns-badge-approved">{{ etype | replace('_',' ') | title }}</span>
+            {% elif etype == 'device_approved' %}
+              <span class="badge ns-badge-approved">{{ etype | replace('_',' ') | title }}</span>
+            {% elif etype == 'alert_created' %}
+              <span class="badge bg-info text-dark">{{ etype | replace('_',' ') | title }}</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ etype | replace('_',' ') | title }}</span>
+            {% endif %}
+            {% if event.is_demo %}<span class="badge ns-badge-demo ms-1">demo</span>{% endif %}
+          </td>
+          <td>
+            {% if event.device_mac %}
+            <code class="small">{{ event.device_mac }}</code><br>
+            {% endif %}
+            {% if event.ip_address %}
+            <code class="small">{{ event.ip_address }}</code>
+            {% endif %}
+            {% if not event.device_mac and not event.ip_address %}—{% endif %}
+          </td>
+          <td>{{ event.description }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body">
+    <div class="ns-empty-state">
+      <i class="bi bi-clock"></i>
+      <p>No activity events recorded yet. Run a network scan to start tracking changes.</p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

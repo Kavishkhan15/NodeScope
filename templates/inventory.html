@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% block title %}Device Inventory{% endblock %}
+{% block page_title %}<i class="bi bi-hdd-network me-2"></i>Device Inventory{% endblock %}
+
+{% block content %}
+
+<!-- Search + sort bar -->
+<div class="card ns-card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-center">
+      <div class="col-auto flex-grow-1">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" name="q" class="form-control"
+                 placeholder="Search IP, MAC or device name…"
+                 value="{{ search }}">
+        </div>
+      </div>
+      <div class="col-auto">
+        <select name="sort" class="form-select">
+          <option value="last_seen" {% if sort=='last_seen' %}selected{% endif %}>Sort: Last Seen</option>
+          <option value="first_seen" {% if sort=='first_seen' %}selected{% endif %}>Sort: First Seen</option>
+          <option value="ip_address" {% if sort=='ip_address' %}selected{% endif %}>Sort: IP Address</option>
+          <option value="mac_address" {% if sort=='mac_address' %}selected{% endif %}>Sort: MAC Address</option>
+          <option value="approved" {% if sort=='approved' %}selected{% endif %}>Sort: Status</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-funnel me-1"></i>Filter</button>
+        {% if search %}
+        <a href="{{ url_for('inventory.list_devices') }}" class="btn btn-outline-secondary ms-1">Clear</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Device table -->
+<div class="card ns-card">
+  <div class="card-header ns-card-header">
+    <i class="bi bi-hdd-network me-2"></i>
+    {{ devices | length }} Device{% if devices | length != 1 %}s{% endif %} Found
+  </div>
+  {% if devices %}
+  <div class="table-responsive">
+    <table class="table table-hover table-striped mb-0 ns-table" id="device-table">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>IP Address</th>
+          <th>MAC Address</th>
+          <th>Friendly Name</th>
+          <th>First Seen</th>
+          <th>Last Seen</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for device in devices %}
+        <tr>
+          <td>
+            {% if device.approved %}
+              <span class="badge ns-badge-approved"><i class="bi bi-shield-check me-1"></i>Approved</span>
+            {% else %}
+              <span class="badge ns-badge-unknown"><i class="bi bi-question-circle me-1"></i>Needs Review</span>
+            {% endif %}
+            {% if device.is_demo %}<span class="badge ns-badge-demo ms-1">demo</span>{% endif %}
+          </td>
+          <td><code>{{ device.ip_address or '—' }}</code></td>
+          <td><code class="text-uppercase">{{ device.mac_address }}</code></td>
+          <td>{{ device.friendly_name or '<span class="text-muted">—</span>' | safe }}</td>
+          <td class="text-muted small">{{ device.first_seen[:16] if device.first_seen else '—' }}</td>
+          <td class="text-muted small">{{ device.last_seen[:16] if device.last_seen else '—' }}</td>
+          <td>
+            <a href="{{ url_for('inventory.device_detail', mac=device.mac_address) }}"
+               class="btn btn-xs btn-outline-secondary me-1">
+              <i class="bi bi-eye"></i>
+            </a>
+            {% if not device.approved %}
+            <button type="button" class="btn btn-xs btn-success"
+                    data-bs-toggle="modal"
+                    data-bs-target="#approveModal"
+                    data-mac="{{ device.mac_address }}"
+                    data-name="{{ device.friendly_name or '' }}">
+              <i class="bi bi-shield-check"></i> Approve
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body">
+    <div class="ns-empty-state">
+      <i class="bi bi-hdd-network"></i>
+      <p>No devices found.
+        {% if search %}No devices match "<strong>{{ search }}</strong>".{% else %}
+        Run a <a href="{{ url_for('scan.scan_page') }}">network scan</a> to discover devices.{% endif %}
+      </p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Approve device modal -->
+<div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="approveModalLabel">
+          <i class="bi bi-shield-check me-2"></i>Approve Device
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('inventory.approve') }}">
+        <div class="modal-body">
+          <p class="text-muted small">
+            Approving a device marks it as known and trusted on this network.
+            This does not grant any special network access — it simply records
+            your recognition of the device.
+          </p>
+          <input type="hidden" name="mac" id="approve-mac">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">MAC Address</label>
+            <input type="text" class="form-control" id="approve-mac-display" readonly>
+          </div>
+          <div class="mb-3">
+            <label for="friendly_name" class="form-label fw-semibold">
+              Friendly Name <span class="text-muted">(optional)</span>
+            </label>
+            <input type="text" name="friendly_name" id="friendly_name"
+                   class="form-control" placeholder="e.g. Living Room TV"
+                   maxlength="100">
+          </div>
+          <div class="mb-3">
+            <label for="notes" class="form-label fw-semibold">
+              Notes <span class="text-muted">(optional)</span>
+            </label>
+            <textarea name="notes" id="notes" class="form-control" rows="2"
+                      placeholder="e.g. Owner: Kavish, Location: desk" maxlength="500"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-shield-check me-1"></i>Approve Device
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Populate approve modal with MAC from data attribute
+document.addEventListener('DOMContentLoaded', function() {
+  var approveModal = document.getElementById('approveModal');
+  approveModal.addEventListener('show.bs.modal', function(event) {
+    var button = event.relatedTarget;
+    var mac = button.getAttribute('data-mac');
+    var name = button.getAttribute('data-name');
+    document.getElementById('approve-mac').value = mac;
+    document.getElementById('approve-mac-display').value = mac;
+    document.getElementById('friendly_name').value = name;
+  });
+});
+</script>
+{% endblock %}

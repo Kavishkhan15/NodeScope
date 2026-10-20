@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+{% block title %}Conflict #{{ conflict.id }} — IP Conflicts{% endblock %}
+{% block page_title %}
+  <i class="bi bi-exclamation-triangle me-2"></i>
+  IP Conflict #{{ conflict.id }}: <code>{{ conflict.ip_address }}</code>
+{% endblock %}
+
+{% block content %}
+
+<a href="{{ url_for('conflicts.list_conflicts') }}" class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left me-1"></i>Back to Conflicts
+</a>
+
+<!-- Conflict summary card -->
+<div class="card ns-card mb-3">
+  <div class="card-header ns-card-header">
+    <i class="bi bi-info-circle me-2"></i>Conflict Details
+    <span class="ms-auto">
+      {% if conflict.status == 'possible_conflict' %}
+        <span class="badge ns-badge-conflict">Possible Conflict</span>
+      {% elif conflict.status == 'under_investigation' %}
+        <span class="badge bg-warning text-dark">Under Investigation</span>
+      {% else %}
+        <span class="badge ns-badge-approved">Resolved</span>
+      {% endif %}
+    </span>
+  </div>
+  <div class="card-body">
+    <table class="table table-sm mb-0">
+      <tr><th style="width:150px">IP Address</th><td><code>{{ conflict.ip_address }}</code></td></tr>
+      <tr><th>MAC Address 1</th><td><code class="text-uppercase">{{ conflict.mac_address_1 }}</code></td></tr>
+      <tr><th>MAC Address 2</th><td><code class="text-uppercase">{{ conflict.mac_address_2 }}</code></td></tr>
+      <tr><th>First Observed</th><td>{{ conflict.first_seen }}</td></tr>
+      <tr><th>Last Observed</th><td>{{ conflict.last_seen }}</td></tr>
+      {% if conflict.investigation_notes %}
+      <tr><th>Notes</th><td>{{ conflict.investigation_notes }}</td></tr>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+<!-- Evidence -->
+{% if conflict.evidence_list %}
+<div class="card ns-card mb-3">
+  <div class="card-header ns-card-header">
+    <i class="bi bi-clipboard-data me-2"></i>Evidence (ARP Observations)
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm ns-table mb-0">
+      <thead><tr><th>IP</th><th>MAC</th><th>Observed At</th></tr></thead>
+      <tbody>
+        {% for e in conflict.evidence_list %}
+        <tr>
+          <td><code>{{ e.ip }}</code></td>
+          <td><code class="text-uppercase">{{ e.mac }}</code></td>
+          <td class="text-muted small">{{ e.observed_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Guided resolution -->
+{% if suggestion.can_suggest %}
+<div class="card ns-card mb-3 border-primary">
+  <div class="card-header ns-card-header bg-primary text-white">
+    <i class="bi bi-lightbulb-fill me-2"></i>Resolution Guidance
+  </div>
+  <div class="card-body">
+    <h6>What NodeScope detected:</h6>
+    <p>{{ suggestion.reasoning }}</p>
+
+    <h6>Suggested alternative IP address:</h6>
+    <p class="fs-4 font-monospace fw-bold text-primary">{{ suggestion.suggested_ip }}</p>
+    <p class="text-muted small">
+      This address appears unused in the current observations and is not the network address,
+      gateway, or broadcast address. However, an ARP scan cannot guarantee an address is
+      unused — a device may have been offline during the scan.
+    </p>
+
+    <h6>Recommended steps:</h6>
+    <ol>
+      {% for step in suggestion.steps %}
+      <li class="mb-1">{{ step }}</li>
+      {% endfor %}
+    </ol>
+
+    <div class="alert alert-warning">
+      <strong><i class="bi bi-exclamation-triangle me-1"></i>Important limitations:</strong>
+      <ul class="mb-0 mt-1">
+        {% for w in suggestion.warnings %}
+        <li>{{ w }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Mark under investigation -->
+{% if conflict.status == 'possible_conflict' %}
+<div class="card ns-card mb-3">
+  <div class="card-header ns-card-header">
+    <i class="bi bi-search me-2"></i>Mark as Under Investigation
+  </div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('conflicts.investigate', conflict_id=conflict.id) }}">
+      <div class="mb-3">
+        <label for="invest-notes" class="form-label">Investigation Notes</label>
+        <textarea name="notes" id="invest-notes" class="form-control" rows="2"
+                  placeholder="Describe what you are investigating…" required></textarea>
+      </div>
+      <button type="submit" class="btn btn-warning">
+        <i class="bi bi-search me-1"></i>Mark Under Investigation
+      </button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- Record resolution attempt -->
+{% if conflict.status != 'resolved' %}
+<div class="card ns-card mb-3">
+  <div class="card-header ns-card-header">
+    <i class="bi bi-tools me-2"></i>Record Resolution Attempt
+  </div>
+  <div class="card-body">
+    <p class="text-muted small">
+      After you have manually made changes (e.g. reconfigured a device's static IP),
+      record what you did here. Then run a new scan and use Verify Resolution.
+    </p>
+    <form method="post" action="{{ url_for('conflicts.resolve', conflict_id=conflict.id) }}">
+      <input type="hidden" name="recommended_ip" value="{{ suggestion.suggested_ip or '' }}">
+      <div class="mb-3">
+        <label for="action_taken" class="form-label fw-semibold">Action Taken</label>
+        <textarea name="action_taken" id="action_taken" class="form-control" rows="2"
+                  placeholder="e.g. Changed static IP of desktop PC from 192.168.1.100 to 192.168.1.55"
+                  required></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="admin_notes" class="form-label fw-semibold">
+          Additional Notes <span class="text-muted">(optional)</span>
+        </label>
+        <textarea name="admin_notes" id="admin_notes" class="form-control" rows="2"
+                  placeholder="Any context that may be useful later…"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-pencil-square me-1"></i>Record Resolution Attempt
+      </button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- Verify resolution -->
+{% if conflict.status == 'under_investigation' %}
+<div class="card ns-card mb-3">
+  <div class="card-header ns-card-header">
+    <i class="bi bi-patch-check me-2"></i>Verify Resolution
+  </div>
+  <div class="card-body">
+    <p class="text-muted small">
+      After running a new network scan, confirm whether the conflict evidence is still present.
+    </p>
+    <form method="post" action="{{ url_for('conflicts.verify', conflict_id=conflict.id) }}">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Is the conflict still present in the latest scan?</label>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="still_present" value="no" id="vr-no" checked>
+          <label class="form-check-label" for="vr-no">
+            <span class="text-success"><i class="bi bi-check-circle me-1"></i></span>
+            No — the conflict is gone (mark as Resolved)
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="still_present" value="yes" id="vr-yes">
+          <label class="form-check-label" for="vr-yes">
+            <span class="text-danger"><i class="bi bi-x-circle me-1"></i></span>
+            Yes — the conflict is still observed (continue investigation)
+          </label>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label for="verify-notes" class="form-label fw-semibold">
+          Verification Notes <span class="text-muted">(optional)</span>
+        </label>
+        <textarea name="admin_notes" id="verify-notes" class="form-control" rows="2"
+                  placeholder="Observations from the follow-up scan…"></textarea>
+      </div>
+      <button type="submit" class="btn btn-success">
+        <i class="bi bi-patch-check me-1"></i>Submit Verification
+      </button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- Resolution history -->
+{% if conflict.resolution_history %}
+<div class="card ns-card mb-3">
+  <div class="card-header ns-card-header">
+    <i class="bi bi-clock-history me-2"></i>Resolution History
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm ns-table mb-0">
+      <thead>
+        <tr><th>Date</th><th>Recommended IP</th><th>Action Taken</th><th>Notes</th><th>Verified</th></tr>
+      </thead>
+      <tbody>
+        {% for action in conflict.resolution_history %}
+        <tr>
+          <td class="text-muted small">{{ action.created_at[:16] }}</td>
+          <td><code>{{ action.recommended_ip or '—' }}</code></td>
+          <td>{{ action.action_taken or '—' }}</td>
+          <td>{{ action.admin_notes or '—' }}</td>
+          <td>
+            {% if action.verified %}
+              <span class="badge ns-badge-approved">Verified</span>
+            {% else %}
+              <span class="badge bg-secondary">Pending</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

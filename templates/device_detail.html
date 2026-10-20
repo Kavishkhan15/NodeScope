@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}Device {{ device.mac_address }}{% endblock %}
+{% block page_title %}<i class="bi bi-hdd me-2"></i>Device Detail{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('inventory.list_devices') }}" class="btn btn-sm btn-outline-secondary mb-3">
+  <i class="bi bi-arrow-left me-1"></i>Back to Inventory
+</a>
+
+<div class="card ns-card mb-3">
+  <div class="card-header ns-card-header">
+    <i class="bi bi-hdd me-2"></i>
+    {{ device.friendly_name or device.mac_address }}
+    <span class="ms-2">
+      {% if device.approved %}
+        <span class="badge ns-badge-approved">Approved</span>
+      {% else %}
+        <span class="badge ns-badge-unknown">Needs Review</span>
+      {% endif %}
+    </span>
+  </div>
+  <div class="card-body">
+    <table class="table table-sm mb-0">
+      <tr><th style="width:140px">MAC Address</th><td><code>{{ device.mac_address }}</code></td></tr>
+      <tr><th>IP Address</th><td><code>{{ device.ip_address or '—' }}</code></td></tr>
+      <tr><th>Friendly Name</th><td>{{ device.friendly_name or '—' }}</td></tr>
+      <tr><th>First Seen</th><td>{{ device.first_seen }}</td></tr>
+      <tr><th>Last Seen</th><td>{{ device.last_seen }}</td></tr>
+      <tr><th>Notes</th><td>{{ device.notes or '—' }}</td></tr>
+    </table>
+  </div>
+  {% if not device.approved %}
+  <div class="card-footer">
+    <button type="button" class="btn btn-success btn-sm"
+            data-bs-toggle="modal" data-bs-target="#approveModal"
+            data-mac="{{ device.mac_address }}"
+            data-name="{{ device.friendly_name or '' }}">
+      <i class="bi bi-shield-check me-1"></i>Approve This Device
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+{% if observations %}
+<div class="card ns-card mb-3">
+  <div class="card-header ns-card-header"><i class="bi bi-list-check me-2"></i>Recent Observations</div>
+  <div class="table-responsive">
+    <table class="table table-sm ns-table mb-0">
+      <thead><tr><th>IP</th><th>MAC</th><th>Subnet Scanned</th><th>Observed At</th></tr></thead>
+      <tbody>
+        {% for o in observations %}
+        <tr>
+          <td><code>{{ o.ip_address }}</code></td>
+          <td><code>{{ o.mac_address }}</code></td>
+          <td><code>{{ o.subnet }}</code></td>
+          <td class="text-muted small">{{ o.observed_at[:19] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Approve modal (reuse same pattern as inventory) -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-shield-check me-2"></i>Approve Device</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('inventory.approve') }}">
+        <div class="modal-body">
+          <input type="hidden" name="mac" id="approve-mac" value="{{ device.mac_address }}">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Friendly Name</label>
+            <input type="text" name="friendly_name" class="form-control"
+                   value="{{ device.friendly_name or '' }}" placeholder="e.g. Living Room TV">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Notes</label>
+            <textarea name="notes" class="form-control" rows="2">{{ device.notes or '' }}</textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-shield-check me-1"></i>Approve
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
