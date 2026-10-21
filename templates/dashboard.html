@@ -4,6 +4,41 @@
 
 {% block content %}
 
+<!-- Hero Banner with NodeScope Logo -->
+<div class="ns-hero-card mb-4">
+  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <div class="ns-hero-logo-wrapper">
+        <img src="{{ url_for('static', filename='img/nodescope-logo.svg') }}" alt="NodeScope Logo" class="ns-hero-logo">
+      </div>
+      <div>
+        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+          <h2 class="ns-hero-title mb-0">NodeScope</h2>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">LAN Sentinel</span>
+          {% if demo_mode %}
+            <span class="badge ns-badge-demo"><i class="bi bi-flask me-1"></i>Demo Mode</span>
+          {% else %}
+            <span class="badge bg-success text-white"><i class="bi bi-shield-check me-1"></i>Active Monitoring</span>
+          {% endif %}
+        </div>
+        <p class="ns-hero-subtitle mb-0">
+          Smart LAN Monitoring, Rogue Device Detection &amp; Guided IP Conflict Resolution
+        </p>
+      </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <a href="{{ url_for('scan.scan_page') }}" class="btn btn-primary btn-sm px-3 shadow-sm">
+        <i class="bi bi-radar me-1"></i>Scan Subnet
+      </a>
+      {% if active_conflicts > 0 %}
+      <a href="{{ url_for('conflicts.list_conflicts') }}" class="btn btn-danger btn-sm px-3 shadow-sm">
+        <i class="bi bi-exclamation-triangle me-1"></i>{{ active_conflicts }} Conflict{% if active_conflicts > 1 %}s{% endif %}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
 <!-- Stat cards -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-lg-3">

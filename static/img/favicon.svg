@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="favBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E2348"/>
+      <stop offset="100%" stop-color="#0D1024"/>
+    </linearGradient>
+    <linearGradient id="favBrand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4CC9F0"/>
+      <stop offset="50%" stop-color="#4361EE"/>
+      <stop offset="100%" stop-color="#7209B7"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="url(#favBg)"/>
+  <circle cx="64" cy="64" r="44" stroke="#4361EE" stroke-width="3" stroke-opacity="0.4" stroke-dasharray="6 4"/>
+  <circle cx="64" cy="64" r="28" stroke="#4CC9F0" stroke-width="2.5" stroke-opacity="0.6"/>
+  <line x1="64" y1="64" x2="36" y2="40" stroke="url(#favBrand)" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="64" y1="64" x2="94" y2="48" stroke="url(#favBrand)" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="64" y1="64" x2="78" y2="92" stroke="url(#favBrand)" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="64" y1="64" x2="42" y2="88" stroke="url(#favBrand)" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="36" cy="40" r="7" fill="#4CC9F0"/>
+  <circle cx="94" cy="48" r="7" fill="#06D6A0"/>
+  <circle cx="78" cy="92" r="7" fill="#7209B7"/>
+  <circle cx="42" cy="88" r="6" fill="#4361EE"/>
+  <circle cx="64" cy="64" r="14" fill="url(#favBrand)"/>
+  <circle cx="64" cy="64" r="6" fill="#FFFFFF"/>
+</svg>

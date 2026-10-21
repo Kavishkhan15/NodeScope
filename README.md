@@ -1,335 +1,192 @@
 # NodeScope
 
-**Smart LAN Monitoring, Rogue Device Detection and IP Conflict Resolution Assistance System**
+**Interactive Virtual LAN Simulator and Network Troubleshooting Lab**
 
-A Computer Networks mini-project built with Flask, Bootstrap 5 and Python.
-
----
-
-## Problem Statement
-
-Home and small-office networks are rarely monitored. Unknown devices connect unnoticed, IP address conflicts silently disrupt connectivity, and network changes are never recorded. Administrators have no structured way to investigate or resolve these issues.
-
-## Objectives
-
-- Discover devices on a local network using ARP scanning.
-- Identify unfamiliar devices that are not in the approved registry.
-- Detect possible IP address conflicts from scan observations.
-- Record all network changes in a searchable history.
-- Guide administrators step-by-step through conflict resolution.
+A Computer Networks engineering mini-project built with **Python (Flask)**, **SQLite**, **HTML5/SVG**, and **Bootstrap 5**.
 
 ---
 
-## How it Differs from NetMap
+## 1. Project Overview
 
-This project was built independently from scratch. The NetMap repository (GPL-3.0, github.com/xoriin/netmap) was consulted as a reference only for understanding general approaches to network discovery. NodeScope uses a completely different stack (Flask vs FastAPI, Bootstrap 5 vs React, sqlite3 vs SQLAlchemy), different page designs, different branding, and focuses specifically on rogue-device detection and guided conflict resolution rather than topology mapping.
+**NodeScope** is a fully simulation-based virtual Local Area Network (LAN) creation, configuration, and troubleshooting platform. Designed specifically as an educational laboratory for Computer Engineering students and educators, it allows users to:
 
----
+- Create and manage virtual IPv4 private networks.
+- Interactively build network topologies using an intuitive SVG-powered drag-and-drop canvas.
+- Configure virtual devices with static IPs or dynamic DHCP leases.
+- Deterministically simulate end-to-end communication using a graph-traversal ICMP Ping engine.
+- Inspect Layer 2 to Layer 3 bindings in a real-time Virtual ARP Table.
+- Intentionally trigger duplicate IPv4 address collisions and resolve them in real-time using an intelligent **Guided Conflict Resolution** workflow.
+- Audit network activity, link changes, and rogue device security alerts.
 
-## Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Backend | Python 3.11+, Flask 3.1 |
-| Network discovery | Scapy (ARP scan) |
-| Database | SQLite via Python's built-in `sqlite3` |
-| Frontend | HTML5, CSS3, Bootstrap 5 (CDN), Vanilla JavaScript |
-| Testing | Pytest 8, pytest-flask |
-| Platform | Windows (VS Code) |
+> [!IMPORTANT]
+> **100% Simulation-Based:** NodeScope requires **no physical network scanning**, **no raw sockets**, **no Npcap/WinPcap**, and **no administrator privileges**. All networking rules are evaluated deterministically using Python standard library networking logic.
 
 ---
 
-## Features
+## 2. Core Modules & Features
 
-### 1. Local Network Discovery
-ARP-based scan of a private subnet. Validates CIDR input, restricts to private ranges, limits to /22 (1022 hosts maximum). Falls back to demo mode when raw sockets are unavailable (no administrator privileges needed for demo).
-
-### 2. Approved Device Registry and Rogue Detection
-Every observed MAC address is compared against the approved registry. Unknown devices trigger an alert. Administrators can approve devices, assign friendly names, and add notes.
-
-### 3. IP Conflict Detection
-Identifies IP addresses observed responding from more than one MAC address. Records the conflicting MACs, timestamps and evidence. Uses statuses: `Possible Conflict → Under Investigation → Resolved`.
-
-**Important:** Multiple MACs for one IP may also be caused by ARP caching, proxy ARP, virtual machines or MAC randomisation. NodeScope presents these as *possible* conflicts requiring investigation, not automatic accusations.
-
-### 4. Device Identity and Activity History
-Records every notable network event: new devices, IP changes, conflict detections, approvals, and alert dismissals. Deduplicates events within 60 seconds to avoid log flooding. Supports filtering by event type.
-
-### 5. Guided IP Conflict Resolution
-When a conflict is detected, NodeScope:
-1. Explains why the conflict was flagged.
-2. Suggests a candidate alternative IP in the same /24 subnet (excluding network, gateway, broadcast, and known-in-use addresses).
-3. Lists step-by-step corrective actions.
-4. Records the administrator's resolution attempt.
-5. Allows verification after a follow-up scan.
-
-NodeScope **cannot** remotely reconfigure devices. All changes must be made manually on the affected device(s).
+| Module | Features & Capabilities |
+| :--- | :--- |
+| **1. Network Management** | Create virtual LAN projects with custom CIDR subnets (e.g., `192.168.10.0/24`), subnet masks, default gateways, and configurable DHCP lease pools. Saved networks persist across restarts in SQLite. |
+| **2. Interactive Topology Workspace** | Interactive visual workspace with draggable nodes, dynamic SVG connection lines, live status badges, online/offline toggles, and collision halo indicators. |
+| **3. Device Inventory & Palette** | Add End Devices (Laptops, Desktops, Smartphones, Printers, Servers) and Networking Devices (Routers, Core Switches, Wireless Access Points). Automatically generates locally-administered unicast MAC addresses (`02:xx:xx:...`). |
+| **4. Static & DHCP Addressing** | Configurable IP allocation mode. Supports static address configuration with duplicate detection, as well as a virtual DHCP server that allocates leases sequentially, tracks active leases, and detects pool exhaustion. |
+| **5. IP Conflict Detection & Resolution** | Automatically detects when two active interfaces share an identical IPv4 address on the LAN. Highlights colliding devices, flags ambiguous ARP entries, computes free candidate IPs in the subnet, and applies real-time database reconfigurations. |
+| **6. ICMP Ping Simulator** | Deterministic reachability analysis based on device power states, IP validity, same-subnet membership, and Breadth-First Search (BFS) graph path continuity through intermediate switches. |
+| **7. Virtual ARP Table** | Educational Layer 2 (MAC) to Layer 3 (IP) resolution table displaying dynamic bindings and flagging ambiguous mappings caused by IP conflicts. |
+| **8. Security Triage & Event Console** | Unapproved rogue host flagging, administrator authorization workflow, and persistent timestamped event logging. |
 
 ---
 
-## Pages
+## 3. Technology Stack
 
-| Page | URL | Purpose |
-|------|-----|---------|
-| Dashboard | `/` | Stats, latest scan, recent alerts and activity |
-| Device Inventory | `/inventory/` | All devices, search, approve |
-| Network Scan | `/scan/` | Run ARP scan or load demo |
-| IP Conflicts | `/conflicts/` | List and investigate conflicts |
-| Activity History | `/history` | Filtered event log |
-| Alerts | `/alerts` | Acknowledge and dismiss alerts |
+- **Backend:** Python 3.11+ / Python 3.14, Flask 3.x
+- **Database:** SQLite via Python's built-in `sqlite3` (parameterized queries, foreign keys, and indexes)
+- **Networking Logic:** Python built-in `ipaddress` module
+- **Testing:** Pytest 8.x, pytest-flask
+- **Frontend:** HTML5, CSS3, Bootstrap 5 (CDN), Bootstrap Icons, Vanilla JavaScript, SVG Vector Graphics
 
 ---
 
-## Database Schema
+## 4. Architecture & Project Structure
 
-```
-scans              — scan runs with subnet, status, timestamps
-devices            — known devices with MAC, IP, approval status
-device_observations — raw per-scan IP/MAC pairs
-alerts             — active and resolved alerts
-ip_conflicts       — detected conflicts with evidence
-activity_events    — deduplicated event log
-resolution_actions — administrator resolution attempts
-```
-
-All tables include an `is_demo` column so demo records can be added and removed independently from real records.
-
----
-
-## Architecture
-
-```
-app.py
+```text
+NodeScope/
+├── app.py                      # Application entry point & CLI commands
+├── requirements.txt            # Minimal dependencies (Flask, Pytest)
+├── README.md                   # Complete documentation & setup instructions
 ├── database/
-│   ├── schema.sql     — CREATE TABLE statements
-│   └── db.py          — get_db(), init_db(), Flask teardown
-├── services/
-│   ├── discovery.py        — ARP scan (Scapy), subnet validation, demo fallback
-│   ├── device_registry.py  — register observations, approve devices
-│   ├── conflict_detection.py — detect IP→multi-MAC, record conflicts
-│   ├── activity_history.py — record events, create alerts
-│   └── resolution.py       — suggest alternative IPs, record actions
+│   ├── db.py                   # SQLite connection pooling & initialization
+│   └── schema.sql              # Normalized relational schema (networks, devices, links, leases, conflicts)
+├── simulator/                  # Pure Python simulation & networking engine
+│   ├── addressing.py           # CIDR calculations, IP/MAC validation & candidate discovery
+│   ├── dhcp.py                 # Virtual DHCP pool allocator & lease lifecycle
+│   ├── connectivity.py         # BFS graph traversal for topological link paths
+│   ├── conflicts.py            # Duplicate IP detection & real-time resolution
+│   ├── ping.py                 # Deterministic ICMP Ping diagnostic engine
+│   ├── arp.py                  # Virtual ARP resolution & collision table
+│   ├── events.py               # Activity audit logging & alert triage
+│   └── scenarios.py            # 5 Pre-packaged educational presentation setups
 ├── routes/
-│   ├── dashboard.py   — GET /
-│   ├── inventory.py   — /inventory/
-│   ├── scan.py        — /scan/
-│   ├── conflicts.py   — /conflicts/
-│   └── history.py     — /history, /alerts
-├── templates/         — Jinja2 + Bootstrap 5 HTML
-├── static/            — nodescope.css, nodescope.js
-├── demo/seed.py       — demo data seeding and reset
-└── tests/             — pytest test suite (49 tests)
+│   ├── views.py                # HTML routes: Welcome (/), Workspace (/workspace/<id>), History (/history/<id>)
+│   └── api.py                  # REST JSON API for dynamic canvas operations
+├── templates/
+│   ├── base.html               # Master layout with NodeScope logo & global creation modal
+│   ├── index.html              # Welcome screen, saved networks & scenario launcher
+│   ├── workspace.html          # Central interactive topology workspace & tools
+│   └── history.html            # Event audit stream & security alerts history
+├── static/
+│   ├── css/nodescope.css       # Custom cyber-indigo design tokens & node styles
+│   ├── js/workspace.js         # Vanilla JS drag-and-drop & canvas SVG engine
+│   └── img/                    # NodeScope vector logo & favicons
+└── tests/                      # Automated Pytest suite (18 unit & integration tests)
 ```
 
 ---
 
-## Setup on Windows (VS Code)
+## 5. Local Setup on Windows (VS Code)
 
 ### Prerequisites
 
-- Python 3.11 or later — https://www.python.org/downloads/
-- Git — https://git-scm.com/
-- VS Code — https://code.visualstudio.com/
-- Npcap (for live scanning only) — https://npcap.com/
+- **Python 3.11 or newer** installed (ensure "Add Python to PATH" is checked during installation).
+- **Git** installed.
+- **VS Code** (recommended editor).
 
-### Step 1 — Clone the repository
+### Step 1: Open Terminal in Project Directory
 
-```powershell
-cd C:\Users\YourName\Documents
-git clone https://github.com/Kavishkhan15/NodeScope.git
-cd NodeScope
-```
-
-### Step 2 — Open in VS Code
+Open Windows PowerShell or VS Code Integrated Terminal (`Ctrl + ~`) in the project directory:
 
 ```powershell
-code .
+cd C:\Path\To\NodeScope
 ```
 
-### Step 3 — Create a virtual environment
+### Step 2: Activate Virtual Environment
+
+If a virtual environment is not already created:
 
 ```powershell
 python -m venv venv
-```
-
-### Step 4 — Activate the virtual environment
-
-```powershell
 .\venv\Scripts\Activate.ps1
 ```
 
-If you see an execution policy error, run this first (once):
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
+*(If PowerShell execution policy restricts script execution, run: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process`)*
 
-### Step 5 — Install dependencies
+### Step 3: Install Dependencies
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-### Step 6 — Start NodeScope
+### Step 4: Run the Application
 
 ```powershell
-$env:FLASK_APP = "app"
-flask run
+python app.py
 ```
 
-Open your browser at: **http://127.0.0.1:5000**
-
-The database is created automatically on first startup in the `instance/` folder.
+Open your browser and navigate to:
+👉 **`http://127.0.0.1:5000/`**
 
 ---
 
-## Demo Mode (No Network Permissions Required)
+## 6. Running the Test Suite
 
-Demo mode loads simulated data without performing any real network scan. It works with no administrator privileges and no Npcap installed.
-
-### Enable demo mode
+Run the full automated test suite using Pytest:
 
 ```powershell
-$env:FLASK_APP = "app"
-$env:NODESCOPE_DEMO = "1"
-flask run
+pytest
 ```
 
-### Load demo data from the browser
-
-1. Go to **http://127.0.0.1:5000**
-2. Click **Load Demo Data** on the Dashboard or Network Scan page
-3. Explore all features with the pre-seeded data
-
-### Load demo data from the terminal
-
-```powershell
-flask seed-demo
-```
-
-### Remove demo data
-
-```powershell
-flask reset-demo
-```
+All 18 tests will execute in in-memory SQLite, verifying network creation, device management, DHCP leases, BFS connectivity, conflict detection, resolution, ping rules, and API endpoints.
 
 ---
 
-## Live Network Scan (Windows)
+## 7. Educational Viva & Presentation Scenarios
 
-Live scanning requires:
-1. **Run VS Code or PowerShell as Administrator**
-2. **Npcap installed** — https://npcap.com/ (free, select "WinPcap compatibility mode" during install)
+NodeScope comes pre-loaded with **5 ready-made demonstration scenarios** designed for live classroom and viva evaluations:
 
-Then:
-
-```powershell
-$env:FLASK_APP = "app"
-flask run
-```
-
-Navigate to **Network Scan → enter your subnet → check the authorisation box → Start ARP Scan**.
-
-Example subnet: `192.168.1.0/24`
-
-Only scan networks you own or have explicit permission to scan.
+| Scenario | Objective & What to Demonstrate |
+| :--- | :--- |
+| **Scenario 1: Working Computer Lab** | A standard healthy star topology (Gateway router, central switch, 2 workstations, laptop, printer). Demonstrate opening the **Ping Simulator**, selecting Workstation 1 → Workstation 2, and observing the successful ICMP reply and BFS path trace (`PC1 → Switch → PC2`). |
+| **Scenario 2: Duplicate IP Conflict** | Workstation Alpha and Beta are both assigned static IP `192.168.10.50`. Show the pulsing red collision halo on the canvas. Open the **Conflicts & Resolution** tab, click **Guided Resolution**, select Workstation Beta, review the suggested candidate IP (`192.168.10.2`), and click **Apply Resolution**. Witness the conflict immediately clear and the ARP table return to normal. |
+| **Scenario 3: DHCP Dynamic Leases** | Demonstrates dynamic host configuration over a Wireless Access Point. Show dynamic address assignment from the pool, inspect the leases, and demonstrate releasing/renewing leases. |
+| **Scenario 4: Disconnected Device Diagnostic** | Workstation 2 is physically disconnected from the departmental switch. Demonstrate running a ping and explaining why it fails (`No active physical or wireless link connects...`). Use the **Connect Link** tool to bridge the cable, re-ping, and show instant recovery. |
+| **Scenario 5: Unapproved Rogue Device** | An unauthorized personal laptop attaches to the LAN. Demonstrate security triage: observe the yellow dashed unapproved badge, inspect the security alert, and perform administrator approval. |
 
 ---
 
-## Running the Tests
+## 8. Presentation Walkthrough Script (Step-by-Step Viva Demo)
 
-```powershell
-.\venv\Scripts\Activate.ps1
-pytest tests/ -v
-```
-
-Expected: **49 passed**. No network access or elevated privileges needed — all tests use an in-memory SQLite database.
-
----
-
-## Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| `Activate.ps1 cannot be loaded` | Run `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` |
-| `Permission denied` on scan | Run VS Code/terminal as Administrator; install Npcap |
-| `Scapy not installed` | `pip install scapy` |
-| `No module named 'flask'` | Activate venv: `.\venv\Scripts\Activate.ps1` |
-| Scan finds no devices | Your machine may need Npcap in WinPcap mode; try demo mode |
-| `instance/nodescope.db` not created | Run `flask init-db` manually |
-
----
-
-## Limitations
-
-- ARP scanning only works on the same LAN segment. Devices on different VLANs or subnets are not reachable.
-- NodeScope cannot change device IP configurations remotely.
-- An ARP scan only sees devices that are online and respond. Sleeping, isolated, or firewall-protected devices may not appear.
-- A "Possible Conflict" may be a false positive (stale ARP cache, VM, MAC randomisation). Always investigate before taking action.
-- Conflict resolution suggestions are based on current observations only. A suggested IP might still be in use if the occupying device was offline during the scan.
-- No user authentication is implemented — designed for local single-administrator use only.
+1. **Launch & Overview:**
+   - Run `python app.py` and open `http://127.0.0.1:5000/`.
+   - Explain the motivation: Home/SOHO networks lack visibility; this lab models LAN dynamics, ARP, and IP conflicts safely without complex physical hardware.
+2. **Create a Virtual LAN:**
+   - Click **Create New Virtual LAN**. Enter Name: `College Lab`, Subnet: `192.168.10.0/24`, Gateway: `192.168.10.1`, DHCP Range: `192.168.10.100–192.168.10.150`.
+   - Click **Create & Open Workspace**.
+3. **Build the Topology:**
+   - From the left palette, add a **Switch**, a **Desktop PC**, and a **Laptop**.
+   - Drag them into position on the canvas.
+   - Click **Connect Link**, click the Desktop then the Switch. Repeat to connect the Switch to the Default Gateway Router.
+4. **Test DHCP & Ping:**
+   - Select the Desktop, verify it received a DHCP lease (`192.168.10.100`).
+   - Open the **Ping Simulator** tab at the bottom, select Desktop → Router, and click **Simulate Ping**. Show the 5-step verification breakdown (Power, IP assignment, Subnet check, Conflict check, Topology path).
+5. **Demonstrate IP Conflict & Guided Resolution:**
+   - Select the Laptop, switch to **Static** mode, and intentionally enter `192.168.10.100`.
+   - Click Save. Instantly, both the Desktop and Laptop light up with a **pulsing red conflict halo**.
+   - Show the **Virtual ARP Table** tab: point out the `AMBIGUOUS (IP Conflict)` status.
+   - Click **Resolve Conflict** in the property panel or bottom tab.
+   - Accept the candidate free IP calculated by NodeScope, click **Apply Resolution**.
+   - Show that the conflict clears, the nodes turn healthy green, and the event is permanently stored in **Activity History**.
 
 ---
 
-## Future Scope
+## 9. Deliberate Simulation Assumptions & Limitations
 
-- Scheduled periodic scans with change notifications.
-- DHCP lease file import to improve conflict analysis.
-- Device type detection using MAC OUI prefix lookup.
-- Export reports to PDF or CSV.
-- Optional login for multi-user environments.
+- **Single Broadcast Domain:** Models one virtual IPv4 LAN per saved project. Multi-router inter-LAN routing protocols (OSPF/BGP) and VLAN tagging are intentionally out of scope.
+- **Layer 2 Simplification:** Switches and Access Points act as transparent forwarding hubs without simulating Spanning Tree Protocol (STP) convergence delays.
+- **Deterministic ICMP:** Ping evaluations are rule-based and deterministic rather than relying on randomized artificial packet loss.
 
 ---
 
-## How Network Discovery Works
+## 10. License
 
-NodeScope uses **ARP (Address Resolution Protocol)** to discover devices:
-
-1. For each target IP in the subnet, an ARP request is broadcast: *"Who has IP x.x.x.x?"*
-2. Online devices that own that IP reply with their MAC address.
-3. NodeScope collects the IP↔MAC pairs from all replies.
-
-Scapy sends these packets at the Ethernet layer. On Windows this requires Npcap (a packet capture driver). On Linux/Mac, raw socket access is needed (`sudo` or `CAP_NET_RAW`).
-
----
-
-## Viva Preparation
-
-**Q: What is an IP address?**
-A: A logical address assigned to a device to identify it on a network. IPv4 addresses are 32-bit numbers written as four octets (e.g. 192.168.1.10).
-
-**Q: What is a MAC address?**
-A: A hardware address permanently assigned to a network interface. It is 48 bits, written as six hex pairs (e.g. AA:BB:CC:DD:EE:FF). MAC addresses operate at Layer 2 (Data Link).
-
-**Q: What is ARP?**
-A: Address Resolution Protocol maps an IP address to a MAC address on a local network. A device broadcasts "Who has IP x?" and the owner replies with its MAC. NodeScope uses ARP requests to discover all responding devices in a subnet.
-
-**Q: What is an IP conflict?**
-A: When two devices are configured with the same IP address. Both try to claim the address, causing connection failures, dropped packets, and unpredictable behaviour for both devices.
-
-**Q: How does NodeScope identify an unknown device?**
-A: Every observed MAC address is looked up in the approved device registry. If the MAC is not present or not approved, the device is flagged as Unknown and an alert is created.
-
-**Q: How does NodeScope detect a possible IP conflict?**
-A: It groups ARP observations by IP address. If the same IP appears with two or more different MAC addresses in one scan, NodeScope records it as a possible conflict.
-
-**Q: Why might a conflict alert be a false positive?**
-A: ARP caching can cause a device to respond briefly on behalf of another IP it recently communicated with. Virtual machines or containers may share a host's NIC with their own virtual MACs. Mobile devices use MAC randomisation, making them appear as new devices on each connection. NodeScope marks these as *possible* conflicts, not confirmed ones.
-
-**Q: Why is changing a device's IP different from detecting a conflict?**
-A: Detection only requires reading ARP packets passively. Changing an IP requires logging into the device's operating system or network configuration and modifying its settings — something NodeScope deliberately does not do, to avoid accidental or unauthorised network changes.
-
-**Q: What is the difference between DHCP and a static IP?**
-A: DHCP (Dynamic Host Configuration Protocol) automatically assigns IP addresses from a pool managed by a router or server. A static IP is manually configured on the device and does not change. Conflicts are more common with static IPs because two administrators might assign the same address independently.
-
-**Q: Why is guided resolution safer than automatic reconfiguration?**
-A: Automatic reconfiguration could change the wrong device, break existing connections, or conflict with DHCP reservations. Guided resolution gives the administrator full visibility and control — they review the recommendation, verify it is appropriate for their specific network, make the change manually, and then confirm the result.
-
----
-
-## Licence and Attribution
-
-NodeScope is an original implementation created as a Computer Networks mini-project.
-
-The NetMap repository (https://github.com/xoriin/netmap, GPL-3.0 licence) was consulted as a reference to understand network discovery approaches. No source code from NetMap was copied into NodeScope.
-
-NodeScope is released under the MIT Licence.
+Developed for academic and educational demonstration purposes under the **MIT License**.

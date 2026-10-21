@@ -1,0 +1,334 @@
+{% extends 'base.html' %}
+{% block title %}Welcome to NodeScope{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Hero Welcome Banner -->
+  <div class="ns-welcome-hero p-4 p-md-5 mb-4 text-white rounded-4 shadow-sm position-relative overflow-hidden">
+    <div class="row align-items-center g-4 position-relative" style="z-index: 2;">
+      <div class="col-lg-8">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="ns-hero-logo-box">
+            <img src="{{ url_for('static', filename='img/nodescope-logo.svg') }}" alt="NodeScope Logo" class="ns-hero-logo-img">
+          </div>
+          <div>
+            <span class="badge bg-info-subtle text-info border border-info-subtle mb-1">Computer Networks Mini-Project</span>
+            <h1 class="display-6 fw-bold mb-0">NodeScope Virtual LAN Lab</h1>
+          </div>
+        </div>
+        <p class="lead text-light mb-4" style="opacity: 0.9; font-size: 1.05rem;">
+          An interactive, zero-privilege networking simulator for building virtual LAN topologies, simulating ARP &amp; DHCP, testing ICMP communication, triggering intentional IP address collisions, and executing guided conflict resolutions.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-primary px-4 shadow" data-bs-toggle="modal" data-bs-target="#newNetworkModal">
+            <i class="bi bi-plus-lg me-1"></i>Create New Virtual LAN
+          </button>
+          <a href="#scenarios-section" class="btn btn-outline-light px-3">
+            <i class="bi bi-mortarboard-fill me-1"></i>Explore 5 Demo Scenarios
+          </a>
+        </div>
+      </div>
+      <div class="col-lg-4 text-center d-none d-lg-block">
+        <div class="p-3 bg-white bg-opacity-10 rounded-4 border border-white border-opacity-25 shadow-sm text-start small">
+          <div class="text-uppercase fw-bold text-info mb-2 small tracking-wide"><i class="bi bi-shield-check me-1"></i>Simulation Highlights</div>
+          <ul class="list-unstyled mb-0 d-flex flex-column gap-2 text-light" style="font-size: 0.85rem;">
+            <li><i class="bi bi-check-circle-fill text-success me-2"></i>100% Simulated (No Npcap or admin rights needed)</li>
+            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Interactive drag-and-drop SVG topology canvas</li>
+            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Deterministic BFS graph-based Ping simulator</li>
+            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Live IP-to-MAC Virtual ARP table viewer</li>
+            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Real-time duplicate IP conflict resolution engine</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Saved Networks Section -->
+  <div class="mb-5">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div>
+        <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-folder2-open text-primary me-2"></i>Saved Virtual Networks</h4>
+        <div class="text-muted small">Select an existing project to launch its simulation workspace.</div>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newNetworkModal">
+        <i class="bi bi-plus-circle me-1"></i>Create Network
+      </button>
+    </div>
+
+    {% if networks %}
+      <div class="row g-3">
+        {% for net in networks %}
+          <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm rounded-3 ns-project-card">
+              <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h5 class="fw-bold text-dark mb-0">{{ net.name }}</h5>
+                  {% if net.conflict_count > 0 %}
+                    <span class="badge bg-danger shadow-sm"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ net.conflict_count }} Conflict</span>
+                  {% else %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle me-1"></i>Healthy</span>
+                  {% endif %}
+                </div>
+                <p class="text-muted small flex-grow-1 mb-3">
+                  {{ net.description or 'Custom virtual local area network.' }}
+                </p>
+
+                <div class="bg-light p-2 rounded-2 small font-monospace mb-3">
+                  <div class="d-flex justify-content-between">
+                    <span class="text-muted">Subnet:</span>
+                    <span class="fw-semibold text-primary">{{ net.subnet }}</span>
+                  </div>
+                  <div class="d-flex justify-content-between">
+                    <span class="text-muted">Gateway:</span>
+                    <span>{{ net.gateway }}</span>
+                  </div>
+                  <div class="d-flex justify-content-between">
+                    <span class="text-muted">DHCP:</span>
+                    <span>{% if net.dhcp_enabled %}Active ({{ net.dhcp_start }}–{{ net.dhcp_end }}){% else %}Disabled{% endif %}</span>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center text-muted small mb-3">
+                  <span><i class="bi bi-hdd-network me-1"></i>{{ net.device_count }} Devices</span>
+                  <span><i class="bi bi-bezier2 me-1"></i>{{ net.connection_count }} Links</span>
+                </div>
+
+                <div class="d-flex gap-2 mt-auto">
+                  <a href="{{ url_for('views.workspace', network_id=net.id) }}" class="btn btn-primary btn-sm flex-grow-1 shadow-sm">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>Launch Workspace
+                  </a>
+                  <a href="{{ url_for('views.history', network_id=net.id) }}" class="btn btn-outline-secondary btn-sm" title="View Event History">
+                    <i class="bi bi-clock-history"></i>
+                  </a>
+                  <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteNetwork({{ net.id }}, '{{ net.name|escape }}')" title="Delete Network">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="card border-0 shadow-sm p-5 text-center bg-white rounded-3">
+        <div class="mb-3 text-muted">
+          <i class="bi bi-diagram-3 fs-1 text-primary" style="opacity: 0.5;"></i>
+        </div>
+        <h5 class="fw-bold text-dark">No Virtual Networks Created Yet</h5>
+        <p class="text-muted small mb-4">Start by creating a new virtual LAN or load one of the educational preset scenarios below.</p>
+        <div>
+          <button type="button" class="btn btn-primary btn-sm px-4" data-bs-toggle="modal" data-bs-target="#newNetworkModal">
+            <i class="bi bi-plus-circle me-1"></i>Create First Network
+          </button>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Educational Presentation Scenarios Section -->
+  <div id="scenarios-section" class="mb-5 pt-3">
+    <div class="mb-3">
+      <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-mortarboard text-primary me-2"></i>Educational Demo Scenarios</h4>
+      <div class="text-muted small">Pre-configured lab setups designed for live college viva demonstrations and presentations.</div>
+    </div>
+
+    <div class="row g-3">
+      <!-- Scenario 1 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border-0 shadow-sm rounded-3">
+          <div class="card-body p-4 d-flex flex-column">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge bg-primary">Scenario 1</span>
+              <h6 class="fw-bold mb-0">Working Computer Lab</h6>
+            </div>
+            <p class="text-muted small flex-grow-1">
+              Demonstrates a healthy star topology: Gateway router, central switch, two student desktops, instructor laptop, and network printer. All IP configurations are valid and communication succeeds.
+            </p>
+            <div class="small bg-light p-2 rounded mb-3 text-muted">
+              <strong>Key Concept:</strong> L2 switching, default gateway routing, ICMP Ping verification.
+            </div>
+            <form action="{{ url_for('views.load_scenario', scenario_id=1) }}" method="POST">
+              <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                <i class="bi bi-play-circle-fill me-1"></i>Load Scenario 1
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scenario 2 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border-0 shadow-sm rounded-3 border-start border-danger border-4">
+          <div class="card-body p-4 d-flex flex-column">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge bg-danger">Scenario 2</span>
+              <h6 class="fw-bold mb-0 text-danger">Duplicate IP Conflict</h6>
+            </div>
+            <p class="text-muted small flex-grow-1">
+              Two workstations are inadvertently assigned the same static IP address (<code>192.168.10.50</code>). Observe the real-time collision alert, ambiguous ARP state, and use Guided Resolution to fix it.
+            </p>
+            <div class="small bg-light p-2 rounded mb-3 text-muted">
+              <strong>Key Concept:</strong> IPv4 address collisions, ARP poisoning hazards, automated candidate IP discovery.
+            </div>
+            <form action="{{ url_for('views.load_scenario', scenario_id=2) }}" method="POST">
+              <button type="submit" class="btn btn-danger btn-sm w-100 shadow-sm">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>Load Scenario 2 (Conflict)
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scenario 3 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border-0 shadow-sm rounded-3">
+          <div class="card-body p-4 d-flex flex-column">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge bg-info text-dark">Scenario 3</span>
+              <h6 class="fw-bold mb-0">DHCP Dynamic Leases</h6>
+            </div>
+            <p class="text-muted small flex-grow-1">
+              Wireless Access Point network where student smartphones and laptops dynamically request IP leases from the gateway's DHCP pool. Demonstrates lease allocation, renewal, and pool tracking.
+            </p>
+            <div class="small bg-light p-2 rounded mb-3 text-muted">
+              <strong>Key Concept:</strong> DORA workflow, address lease pool exhaustion, dynamic host configuration.
+            </div>
+            <form action="{{ url_for('views.load_scenario', scenario_id=3) }}" method="POST">
+              <button type="submit" class="btn btn-outline-info text-dark btn-sm w-100">
+                <i class="bi bi-wifi me-1"></i>Load Scenario 3 (DHCP)
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scenario 4 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border-0 shadow-sm rounded-3">
+          <div class="card-body p-4 d-flex flex-column">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge bg-warning text-dark">Scenario 4</span>
+              <h6 class="fw-bold mb-0">Disconnected Device Diagnostic</h6>
+            </div>
+            <p class="text-muted small flex-grow-1">
+              A workstation is disconnected from the departmental switch. A simulated ping fails with topological diagnostics. Reconnect the link to witness instant recovery.
+            </p>
+            <div class="small bg-light p-2 rounded mb-3 text-muted">
+              <strong>Key Concept:</strong> Layer 1/2 physical link diagnostics, graph traversal, reachability validation.
+            </div>
+            <form action="{{ url_for('views.load_scenario', scenario_id=4) }}" method="POST">
+              <button type="submit" class="btn btn-outline-warning text-dark btn-sm w-100">
+                <i class="bi bi-ethernet me-1"></i>Load Scenario 4 (Disconnected)
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scenario 5 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border-0 shadow-sm rounded-3">
+          <div class="card-body p-4 d-flex flex-column">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge bg-secondary">Scenario 5</span>
+              <h6 class="fw-bold mb-0">Unapproved Rogue Device</h6>
+            </div>
+            <p class="text-muted small flex-grow-1">
+              An unauthorized personal laptop joins the office LAN. The simulator flags it as unapproved and generates security alerts for administrator review and manual approval.
+            </p>
+            <div class="small bg-light p-2 rounded mb-3 text-muted">
+              <strong>Key Concept:</strong> Network access triage, approved device registry, rogue host detection.
+            </div>
+            <form action="{{ url_for('views.load_scenario', scenario_id=5) }}" method="POST">
+              <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                <i class="bi bi-shield-lock me-1"></i>Load Scenario 5 (Rogue Host)
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Academic Concept Guide / Viva Cheat Sheet -->
+  <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 bg-white mb-4">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-book-half fs-4 text-primary"></i>
+      <h5 class="fw-bold mb-0 text-dark">Computer Networks Academic Reference Guide</h5>
+    </div>
+    <p class="text-muted small mb-4">
+      Fundamental networking concepts modelled deterministically inside the NodeScope simulation engine.
+    </p>
+
+    <div class="row g-4">
+      <div class="col-md-6 col-lg-4">
+        <div class="p-3 bg-light rounded-3 h-100">
+          <div class="fw-bold text-primary mb-1"><i class="bi bi-diagram-2 me-1"></i>IPv4 &amp; Subnetting</div>
+          <p class="small text-muted mb-0">
+            CIDR notation (e.g. <code>/24</code>) establishes network boundaries and host capacities. Broadcast and network IDs cannot be assigned to hosts. NodeScope validates all host assignments against the defined subnet mask.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="p-3 bg-light rounded-3 h-100">
+          <div class="fw-bold text-success mb-1"><i class="bi bi-server me-1"></i>DHCP Allocation</div>
+          <p class="small text-muted mb-0">
+            Dynamic Host Configuration Protocol leases IP addresses from a pre-defined address pool. The simulator tracks active leases and prevents assignment of addresses occupied by static hosts or the gateway.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="p-3 bg-light rounded-3 h-100">
+          <div class="fw-bold text-danger mb-1"><i class="bi bi-exclamation-triangle me-1"></i>IP Address Conflicts</div>
+          <p class="small text-muted mb-0">
+            Occurs when two active interfaces share an identical IPv4 address on the same broadcast domain. NodeScope detects duplicate assignments, flags ambiguous ARP entries, and recommends free alternative IPs.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="p-3 bg-light rounded-3 h-100">
+          <div class="fw-bold text-info mb-1"><i class="bi bi-arrow-left-right me-1"></i>ARP (Address Resolution)</div>
+          <p class="small text-muted mb-0">
+            Translates Layer 3 IP addresses into Layer 2 physical MAC addresses. NodeScope provides an interactive Virtual ARP table indicating normal resolution versus collision ambiguity.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="p-3 bg-light rounded-3 h-100">
+          <div class="fw-bold text-warning text-dark mb-1"><i class="bi bi-activity me-1"></i>ICMP Echo (Ping)</div>
+          <p class="small text-muted mb-0">
+            Tests end-to-end reachability. Evaluates power status, IP validity, same-subnet local traversal (where gateway is not required), and BFS topological path continuity through intermediate switches.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="p-3 bg-light rounded-3 h-100">
+          <div class="fw-bold text-secondary mb-1"><i class="bi bi-shield-check me-1"></i>Device Registry &amp; Triage</div>
+          <p class="small text-muted mb-0">
+            Models network security policy. New end devices are flagged as Unapproved until authorized by an administrator, preventing unmonitored rogue attachments on the LAN.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  async function deleteNetwork(netId, netName) {
+    if (!confirm(`Are you sure you want to permanently delete network '${netName}'?`)) return;
+    try {
+      const res = await fetch(`/api/networks/${netId}`, {method: 'DELETE'});
+      const data = await res.json();
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to delete network.');
+      }
+    } catch (err) {
+      alert('Error deleting network: ' + err.message);
+    }
+  }
+</script>
+{% endblock %}
