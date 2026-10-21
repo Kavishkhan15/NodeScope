@@ -1,63 +1,121 @@
-# NodeScope
+# NodeScope — Interactive Virtual LAN Simulator & Troubleshooting Lab
 
-**Interactive Virtual LAN Simulator and Network Troubleshooting Lab**
+<div align="center">
 
-A Computer Networks engineering mini-project built with **Python (Flask)**, **SQLite**, **HTML5/SVG**, and **Bootstrap 5**.
+![NodeScope Logo](static/img/nodescope-logo.svg)
+
+### A Complete Simulation-Based Computer Networks Laboratory & Engineering Mini-Project
+*Built with Python 3, Flask, SQLite, HTML5, CSS3, Bootstrap 5, and SVG Vector Graphics*
+
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.14-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.x-lightgrey.svg?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![SQLite](https://img.shields.io/badge/Database-SQLite3-blue.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Pytest](https://img.shields.io/badge/Tests-18%2F18%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](tests/)
+[![Architecture](https://img.shields.io/badge/Docs-Architecture%20Spec-blueviolet.svg)](docs/ARCHITECTURE.md)
+[![Lab Manual](https://img.shields.io/badge/Docs-Viva%20Lab%20Manual-orange.svg)](docs/LAB_MANUAL.md)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+</div>
 
 ---
 
 ## 1. Project Overview
 
-**NodeScope** is a fully simulation-based virtual Local Area Network (LAN) creation, configuration, and troubleshooting platform. Designed specifically as an educational laboratory for Computer Engineering students and educators, it allows users to:
-
-- Create and manage virtual IPv4 private networks.
-- Interactively build network topologies using an intuitive SVG-powered drag-and-drop canvas.
-- Configure virtual devices with static IPs or dynamic DHCP leases.
-- Deterministically simulate end-to-end communication using a graph-traversal ICMP Ping engine.
-- Inspect Layer 2 to Layer 3 bindings in a real-time Virtual ARP Table.
-- Intentionally trigger duplicate IPv4 address collisions and resolve them in real-time using an intelligent **Guided Conflict Resolution** workflow.
-- Audit network activity, link changes, and rogue device security alerts.
+**NodeScope** is a fully simulation-based virtual Local Area Network (LAN) design, configuration, and troubleshooting platform. Developed specifically for **Computer Engineering and Information Technology students and instructors**, it allows users to visually assemble LAN topologies, configure IPv4 subnetting and dynamic DHCP services, run deterministic Layer 3 ICMP ping diagnostics, analyze Layer 2 to Layer 3 mappings in a Virtual ARP Table, and troubleshoot real-time IP address collisions with an intelligent **Guided Conflict Resolver**.
 
 > [!IMPORTANT]
-> **100% Simulation-Based:** NodeScope requires **no physical network scanning**, **no raw sockets**, **no Npcap/WinPcap**, and **no administrator privileges**. All networking rules are evaluated deterministically using Python standard library networking logic.
+> **100% Simulation-Driven:** NodeScope requires **no physical network scanning**, **no raw sockets**, **no Scapy/Npcap/WinPcap**, and **no administrator privileges**. All networking rules are evaluated deterministically using standard library Python networking logic (`ipaddress`), graph traversal algorithms (Breadth-First Search), and relational SQLite persistence.
 
 ---
 
-## 2. Core Modules & Features
+## 2. Visual Tour & Application Screenshots
 
-| Module | Features & Capabilities |
+### Welcome Dashboard & Scenario Launcher
+Select from 5 pre-packaged educational scenarios, open saved networks, or create custom IPv4 private LANs with full CIDR subnet and DHCP pool validation.
+
+![Welcome Dashboard](docs/screenshots/01-welcome-dashboard.png)
+
+---
+
+### Interactive 3-Panel Topology Workspace
+Features an intuitive SVG-powered drag-and-drop canvas, a comprehensive device palette (Routers, Switches, PCs, Laptops, Phones, Servers), and a dedicated Device Properties Inspector with unclipped power/access controls and dynamic subtext.
+
+![Interactive Topology Workspace](docs/screenshots/02-workspace-topology.png)
+
+---
+
+### Real-Time IP Address Collision Detection & Halos
+When two active interfaces share an identical IPv4 address, NodeScope instantly flags the collision with pulsing red halos, an alert counter, and an ambiguous Virtual ARP Table entry.
+
+![IP Conflict Detection](docs/screenshots/03-ip-conflict-detected.png)
+
+---
+
+### Rogue Device Detection & Security Access Control
+Unauthorized hardware connected to the network is instantly highlighted with a yellow dashed warning border and shield alert icon, enabling network security triage and administrator authorization.
+
+![Rogue Device Warning](docs/screenshots/04-unapproved-rogue-device.png)
+
+---
+
+### Persistent Activity Audit & Event Stream
+Every network event—DHCP lease grants, link modifications, ICMP ping probes, IP collisions, and security alerts—is recorded with microsecond timestamps for historical audit.
+
+![Activity Audit History](docs/screenshots/05-activity-audit-history.png)
+
+---
+
+## 3. Core Modules & Capabilities
+
+| Module | Technical Capabilities |
 | :--- | :--- |
-| **1. Network Management** | Create virtual LAN projects with custom CIDR subnets (e.g., `192.168.10.0/24`), subnet masks, default gateways, and configurable DHCP lease pools. Saved networks persist across restarts in SQLite. |
-| **2. Interactive Topology Workspace** | Interactive visual workspace with draggable nodes, dynamic SVG connection lines, live status badges, online/offline toggles, and collision halo indicators. |
-| **3. Device Inventory & Palette** | Add End Devices (Laptops, Desktops, Smartphones, Printers, Servers) and Networking Devices (Routers, Core Switches, Wireless Access Points). Automatically generates locally-administered unicast MAC addresses (`02:xx:xx:...`). |
-| **4. Static & DHCP Addressing** | Configurable IP allocation mode. Supports static address configuration with duplicate detection, as well as a virtual DHCP server that allocates leases sequentially, tracks active leases, and detects pool exhaustion. |
-| **5. IP Conflict Detection & Resolution** | Automatically detects when two active interfaces share an identical IPv4 address on the LAN. Highlights colliding devices, flags ambiguous ARP entries, computes free candidate IPs in the subnet, and applies real-time database reconfigurations. |
+| **1. Network Management** | Create virtual LAN projects with custom CIDR subnets (e.g. `192.168.10.0/24`), netmasks, default gateways, and configurable DHCP pools (`192.168.10.100`–`192.168.10.150`). Persists across restarts in SQLite. |
+| **2. Interactive Topology Workspace** | 3-panel workspace: Left Device Palette, Centre SVG Canvas, Right Device Inspector. Smooth 60fps link dragging, node selection, and zoom/center controls. |
+| **3. Device Inventory & Palette** | Add End Devices (Laptops, Desktops, Phones, Printers, Servers) and Networking Infrastructure (Routers, Core Switches, Wireless APs). Automatically assigns IEEE-compliant unicast MACs (`02:xx:xx:...`). |
+| **4. Static & DHCP Addressing** | Configurable IP allocation mode. Supports static assignment with duplicate detection, as well as a virtual DHCP server that allocates sequential leases, tracks renewals/releases, and flags pool exhaustion. |
+| **5. IP Conflict Detection & Guided Resolver** | Automatically detects when $\ge 2$ active hosts share an IPv4 address. Highlights nodes, flags ambiguous ARP entries, computes free candidate IPs in the subnet, and applies real-time database reconfigurations. |
 | **6. ICMP Ping Simulator** | Deterministic reachability analysis based on device power states, IP validity, same-subnet membership, and Breadth-First Search (BFS) graph path continuity through intermediate switches. |
 | **7. Virtual ARP Table** | Educational Layer 2 (MAC) to Layer 3 (IP) resolution table displaying dynamic bindings and flagging ambiguous mappings caused by IP conflicts. |
-| **8. Security Triage & Event Console** | Unapproved rogue host flagging, administrator authorization workflow, and persistent timestamped event logging. |
+| **8. Resizable Simulation Console** | Collapsible to a compact 38px tab bar or expandable up to 500px using a vertical mouse drag handle, keeping logs constrained to internal scrollbars. |
 
 ---
 
-## 3. Technology Stack
+## 4. Documentation & Laboratory Guides
+
+To assist students and educators during project reviews, viva examinations, and lab demonstrations, comprehensive documentation is provided:
+
+- 📐 **[System Architecture & Simulation Specification](docs/ARCHITECTURE.md)**: In-depth breakdown of the MVC pattern, relational SQLite schema, BFS graph algorithms, and DHCP state machine.
+- 📖 **[Laboratory Manual & 20 Viva Questions](docs/LAB_MANUAL.md)**: 4 full student lab experiments with procedures, expected outputs, and 20 essential Computer Networks oral viva questions with complete technical answers.
+- 🔌 **[REST API Reference](docs/API_REFERENCE.md)**: Detailed JSON schema and request/response examples for all 16 Flask REST API endpoints.
+
+---
+
+## 5. Technology Stack
 
 - **Backend:** Python 3.11+ / Python 3.14, Flask 3.x
 - **Database:** SQLite via Python's built-in `sqlite3` (parameterized queries, foreign keys, and indexes)
 - **Networking Logic:** Python built-in `ipaddress` module
 - **Testing:** Pytest 8.x, pytest-flask
-- **Frontend:** HTML5, CSS3, Bootstrap 5 (CDN), Bootstrap Icons, Vanilla JavaScript, SVG Vector Graphics
+- **Frontend:** HTML5, CSS3, Bootstrap 5, Bootstrap Icons, Vanilla JavaScript, SVG Vector Graphics
+- **Zero Heavy Build Tools:** No Node.js, Webpack, npm, React, or TypeScript needed. Starts with a single Python command!
 
 ---
 
-## 4. Architecture & Project Structure
+## 6. Architecture & Project Structure
 
 ```text
 NodeScope/
-├── app.py                      # Application entry point & CLI commands
+├── app.py                      # Application entry point & factory
 ├── requirements.txt            # Minimal dependencies (Flask, Pytest)
-├── README.md                   # Complete documentation & setup instructions
+├── README.md                   # Main documentation & visual tour
+├── docs/                       # Project documentation & assets
+│   ├── ARCHITECTURE.md         # System architecture & simulation algorithms
+│   ├── LAB_MANUAL.md           # Student lab manual & 20 viva Q&As
+│   ├── API_REFERENCE.md        # Complete REST API reference
+│   └── screenshots/            # High-resolution application screenshots
 ├── database/
 │   ├── db.py                   # SQLite connection pooling & initialization
-│   └── schema.sql              # Normalized relational schema (networks, devices, links, leases, conflicts)
+│   └── schema.sql              # Normalized relational schema (6 core tables)
 ├── simulator/                  # Pure Python simulation & networking engine
 │   ├── addressing.py           # CIDR calculations, IP/MAC validation & candidate discovery
 │   ├── dhcp.py                 # Virtual DHCP pool allocator & lease lifecycle
@@ -69,47 +127,46 @@ NodeScope/
 │   └── scenarios.py            # 5 Pre-packaged educational presentation setups
 ├── routes/
 │   ├── views.py                # HTML routes: Welcome (/), Workspace (/workspace/<id>), History (/history/<id>)
-│   └── api.py                  # REST JSON API for dynamic canvas operations
+│   └── api.py                  # 16 REST JSON API endpoints for canvas operations
 ├── templates/
 │   ├── base.html               # Master layout with NodeScope logo & global creation modal
 │   ├── index.html              # Welcome screen, saved networks & scenario launcher
 │   ├── workspace.html          # Central interactive topology workspace & tools
 │   └── history.html            # Event audit stream & security alerts history
 ├── static/
-│   ├── css/nodescope.css       # Custom cyber-indigo design tokens & node styles
-│   ├── js/workspace.js         # Vanilla JS drag-and-drop & canvas SVG engine
+│   ├── css/nodescope.css       # Custom cyber-indigo design tokens & layout rules
+│   ├── js/workspace.js         # Vanilla JS drag-and-drop & SVG connection engine
 │   └── img/                    # NodeScope vector logo & favicons
+├── scripts/
+│   └── capture_screenshots.py  # Headless browser automated screenshot capture script
 └── tests/                      # Automated Pytest suite (18 unit & integration tests)
 ```
 
 ---
 
-## 5. Local Setup on Windows (VS Code)
+## 7. Getting Started on Windows (VS Code)
 
 ### Prerequisites
 
-- **Python 3.11 or newer** installed (ensure "Add Python to PATH" is checked during installation).
-- **Git** installed.
+- **Python 3.11 or newer** installed ([python.org](https://www.python.org/downloads/)). Check "Add Python to PATH" during installation.
+- **Git** installed ([git-scm.com](https://git-scm.com/)).
 - **VS Code** (recommended editor).
 
-### Step 1: Open Terminal in Project Directory
-
-Open Windows PowerShell or VS Code Integrated Terminal (`Ctrl + ~`) in the project directory:
+### Step 1: Clone Repository & Open Directory
 
 ```powershell
-cd C:\Path\To\NodeScope
+git clone https://github.com/Kavishkhan15/NodeScope.git
+cd NodeScope
 ```
 
-### Step 2: Activate Virtual Environment
-
-If a virtual environment is not already created:
+### Step 2: Create & Activate Virtual Environment
 
 ```powershell
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 ```
 
-*(If PowerShell execution policy restricts script execution, run: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process`)*
+*(If PowerShell script execution is restricted, run: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process`)*
 
 ### Step 3: Install Dependencies
 
@@ -123,24 +180,42 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open your browser and navigate to:
+Open your browser and navigate to:  
 👉 **`http://127.0.0.1:5000/`**
 
 ---
 
-## 6. Running the Test Suite
+## 8. Running the Automated Test Suite
 
-Run the full automated test suite using Pytest:
+Run the complete automated test suite:
 
 ```powershell
 pytest
 ```
 
-All 18 tests will execute in in-memory SQLite, verifying network creation, device management, DHCP leases, BFS connectivity, conflict detection, resolution, ping rules, and API endpoints.
+Output:
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.14.0, pytest-8.3.5
+collected 18 items
+
+tests\test_sim_addressing.py .........                                   [ 50%]
+tests\test_sim_api.py .                                                  [ 55%]
+tests\test_sim_arp.py .                                                  [ 61%]
+tests\test_sim_conflicts.py .                                            [ 66%]
+tests\test_sim_connectivity.py .                                         [ 72%]
+tests\test_sim_devices.py .                                              [ 77%]
+tests\test_sim_dhcp.py .                                                 [ 83%]
+tests\test_sim_events.py .                                               [ 88%]
+tests\test_sim_ping.py .                                                 [ 94%]
+tests\test_sim_scenarios.py .                                            [100%]
+
+============================= 18 passed in 1.27s ==============================
+```
 
 ---
 
-## 7. Educational Viva & Presentation Scenarios
+## 9. Educational Presentation & Viva Demonstration Scenarios
 
 NodeScope comes pre-loaded with **5 ready-made demonstration scenarios** designed for live classroom and viva evaluations:
 
@@ -154,39 +229,26 @@ NodeScope comes pre-loaded with **5 ready-made demonstration scenarios** designe
 
 ---
 
-## 8. Presentation Walkthrough Script (Step-by-Step Viva Demo)
+## 10. Step-by-Step Viva Demonstration Script
 
-1. **Launch & Overview:**
+1. **Launch & Motivation:**
    - Run `python app.py` and open `http://127.0.0.1:5000/`.
-   - Explain the motivation: Home/SOHO networks lack visibility; this lab models LAN dynamics, ARP, and IP conflicts safely without complex physical hardware.
-2. **Create a Virtual LAN:**
-   - Click **Create New Virtual LAN**. Enter Name: `College Lab`, Subnet: `192.168.10.0/24`, Gateway: `192.168.10.1`, DHCP Range: `192.168.10.100–192.168.10.150`.
-   - Click **Create & Open Workspace**.
-3. **Build the Topology:**
-   - From the left palette, add a **Switch**, a **Desktop PC**, and a **Laptop**.
-   - Drag them into position on the canvas.
-   - Click **Connect Link**, click the Desktop then the Switch. Repeat to connect the Switch to the Default Gateway Router.
-4. **Test DHCP & Ping:**
-   - Select the Desktop, verify it received a DHCP lease (`192.168.10.100`).
-   - Open the **Ping Simulator** tab at the bottom, select Desktop → Router, and click **Simulate Ping**. Show the 5-step verification breakdown (Power, IP assignment, Subnet check, Conflict check, Topology path).
-5. **Demonstrate IP Conflict & Guided Resolution:**
-   - Select the Laptop, switch to **Static** mode, and intentionally enter `192.168.10.100`.
-   - Click Save. Instantly, both the Desktop and Laptop light up with a **pulsing red conflict halo**.
-   - Show the **Virtual ARP Table** tab: point out the `AMBIGUOUS (IP Conflict)` status.
-   - Click **Resolve Conflict** in the property panel or bottom tab.
-   - Accept the candidate free IP calculated by NodeScope, click **Apply Resolution**.
-   - Show that the conflict clears, the nodes turn healthy green, and the event is permanently stored in **Activity History**.
+   - Explain that physical LAN testing is costly and hard to observe; NodeScope gives students a visual window into ARP, DHCP, and packet forwarding without hardware constraints.
+2. **Build a Network:**
+   - Click **Create New Virtual LAN** (`192.168.10.0/24`, gateway `192.168.10.1`, DHCP pool `192.168.10.100`–`150`).
+   - Add a switch, desktop, and laptop. Connect them with the **Connect Link** tool.
+3. **Verify DHCP & Ping:**
+   - Inspect the desktop to show it received `192.168.10.100`.
+   - In the bottom console, open **Ping Simulator**, run Desktop → Gateway Router, and demonstrate the 5-step diagnostic breakdown.
+4. **Trigger & Resolve IP Collision:**
+   - Configure the laptop with static IP `192.168.10.100`.
+   - Show the instant **pulsing red conflict halos** and the `AMBIGUOUS` ARP table entry.
+   - Click **Launch Guided Conflict Resolution**, apply the recommended IP (`192.168.10.2`), and show the instant recovery back to healthy green.
+5. **Review Audit Logs:**
+   - Navigate to **Activity History** to show that all events, lease grants, and conflict resolutions are permanently recorded with timestamps.
 
 ---
 
-## 9. Deliberate Simulation Assumptions & Limitations
-
-- **Single Broadcast Domain:** Models one virtual IPv4 LAN per saved project. Multi-router inter-LAN routing protocols (OSPF/BGP) and VLAN tagging are intentionally out of scope.
-- **Layer 2 Simplification:** Switches and Access Points act as transparent forwarding hubs without simulating Spanning Tree Protocol (STP) convergence delays.
-- **Deterministic ICMP:** Ping evaluations are rule-based and deterministic rather than relying on randomized artificial packet loss.
-
----
-
-## 10. License
+## 11. License
 
 Developed for academic and educational demonstration purposes under the **MIT License**.
