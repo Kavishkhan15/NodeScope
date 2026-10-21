@@ -21,7 +21,7 @@
 
 ---
 
-## 1. Project Overview
+ Project Overview
 
 **NodeScope** is a fully simulation-based virtual Local Area Network (LAN) design, configuration, and troubleshooting platform. Developed specifically for **Computer Engineering and Information Technology students and instructors**, it allows users to visually assemble LAN topologies, configure IPv4 subnetting and dynamic DHCP services, run deterministic Layer 3 ICMP ping diagnostics, analyze Layer 2 to Layer 3 mappings in a Virtual ARP Table, and troubleshoot real-time IP address collisions with an intelligent **Guided Conflict Resolver**.
 
@@ -30,7 +30,7 @@
 
 ---
 
-## 2. Visual Tour & Application Screenshots
+ Visual Tour & Application Screenshots
 
 ### Welcome Dashboard & Scenario Launcher
 Select from 5 pre-packaged educational scenarios, open saved networks, or create custom IPv4 private LANs with full CIDR subnet and DHCP pool validation.
@@ -67,7 +67,7 @@ Every network event—DHCP lease grants, link modifications, ICMP ping probes, I
 
 ---
 
-## 3. Core Modules & Capabilities
+ Core Modules & Capabilities
 
 | Module | Technical Capabilities |
 | :--- | :--- |
@@ -82,7 +82,7 @@ Every network event—DHCP lease grants, link modifications, ICMP ping probes, I
 
 ---
 
-## 4. Documentation & Laboratory Guides
+ Documentation & Laboratory Guides
 
 To assist students and educators during project reviews, viva examinations, and lab demonstrations, comprehensive documentation is provided:
 
