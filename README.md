@@ -11,6 +11,8 @@
 [![Flask](https://img.shields.io/badge/Flask-3.x-lightgrey.svg?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![SQLite](https://img.shields.io/badge/Database-SQLite3-blue.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![Pytest](https://img.shields.io/badge/Tests-18%2F18%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](tests/)
+[![Project Report PDF](https://img.shields.io/badge/PDF-Project%20Report-red.svg?logo=adobeacrobatreader&logoColor=white)](docs/NodeScope_Project_Report.pdf)
+[![Viva Script](https://img.shields.io/badge/Docs-Viva%20Presentation%20Script-blue.svg)](docs/PRESENTATION_SCRIPT.md)
 [![Architecture](https://img.shields.io/badge/Docs-Architecture%20Spec-blueviolet.svg)](docs/ARCHITECTURE.md)
 [![Lab Manual](https://img.shields.io/badge/Docs-Viva%20Lab%20Manual-orange.svg)](docs/LAB_MANUAL.md)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -84,6 +86,8 @@ Every network event—DHCP lease grants, link modifications, ICMP ping probes, I
 
 To assist students and educators during project reviews, viva examinations, and lab demonstrations, comprehensive documentation is provided:
 
+- 📄 **[Comprehensive Project Report (PDF)](docs/NodeScope_Project_Report.pdf)**: Complete academic report with executive summary, comparative study, system architecture, database design, visual screenshots, testing analysis, and viva defense guide.
+- 🗣️ **[Viva Voce Presentation Script for "Sir"](docs/PRESENTATION_SCRIPT.md)**: Spoken step-by-step presentation script with screen action cues, talking points, and answers to high-frequency professor questions.
 - 📐 **[System Architecture & Simulation Specification](docs/ARCHITECTURE.md)**: In-depth breakdown of the MVC pattern, relational SQLite schema, BFS graph algorithms, and DHCP state machine.
 - 📖 **[Laboratory Manual & 20 Viva Questions](docs/LAB_MANUAL.md)**: 4 full student lab experiments with procedures, expected outputs, and 20 essential Computer Networks oral viva questions with complete technical answers.
 - 🔌 **[REST API Reference](docs/API_REFERENCE.md)**: Detailed JSON schema and request/response examples for all 16 Flask REST API endpoints.
@@ -109,6 +113,8 @@ NodeScope/
 ├── requirements.txt            # Minimal dependencies (Flask, Pytest)
 ├── README.md                   # Main documentation & visual tour
 ├── docs/                       # Project documentation & assets
+│   ├── NodeScope_Project_Report.pdf # Formatted academic project report (PDF)
+│   ├── PRESENTATION_SCRIPT.md  # Viva presentation script & cues for "Sir"
 │   ├── ARCHITECTURE.md         # System architecture & simulation algorithms
 │   ├── LAB_MANUAL.md           # Student lab manual & 20 viva Q&As
 │   ├── API_REFERENCE.md        # Complete REST API reference
