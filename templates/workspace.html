@@ -4,34 +4,34 @@
 {% block body_class %}ns-workspace-body{% endblock %}
 
 {% block navbar_center %}
-<div class="d-none d-md-flex align-items-center gap-2 text-white ms-3">
-  <span class="fw-bold fs-6">{{ network.name }}</span>
-  <span class="badge bg-secondary font-monospace">{{ network.subnet }}</span>
-  <span class="badge bg-dark border border-secondary font-monospace">GW: {{ network.gateway }}</span>
+<div class="d-none d-md-flex align-items-center gap-2 text-white ms-3 overflow-hidden flex-shrink-1">
+  <span class="fw-bold fs-6 text-truncate" style="max-width: 260px;" title="{{ network.name }}">{{ network.name }}</span>
+  <span class="badge bg-secondary font-monospace flex-shrink-0">{{ network.subnet }}</span>
+  <span class="badge bg-dark border border-secondary font-monospace flex-shrink-0">GW: {{ network.gateway }}</span>
   {% if network.dhcp_enabled %}
-    <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace" title="DHCP Pool: {{ network.dhcp_start }} - {{ network.dhcp_end }}">
+    <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace flex-shrink-0" title="DHCP Pool: {{ network.dhcp_start }} - {{ network.dhcp_end }}">
       <i class="bi bi-server me-1"></i>DHCP
     </span>
   {% endif %}
-  <span id="nav-conflict-badge" class="badge bg-danger d-none">
+  <span id="nav-conflict-badge" class="badge bg-danger flex-shrink-0 d-none">
     <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="nav-conflict-count">0</span> Conflicts
   </span>
 </div>
 {% endblock %}
 
 {% block navbar_actions %}
-<div class="d-flex align-items-center gap-2">
-  <button type="button" class="btn btn-sm btn-outline-light" onclick="saveDevicePositions()" id="save-layout-btn" title="Save device coordinates">
-    <i class="bi bi-floppy me-1"></i>Save Layout
+<div class="d-flex align-items-center gap-2 flex-nowrap">
+  <button type="button" class="btn btn-sm btn-outline-light d-inline-flex align-items-center gap-1" onclick="saveDevicePositions()" id="save-layout-btn" title="Save device coordinates">
+    <i class="bi bi-floppy"></i><span class="d-none d-sm-inline">Save Layout</span>
   </button>
-  <button type="button" class="btn btn-sm btn-light text-primary fw-semibold" onclick="openPingTab()">
-    <i class="bi bi-activity me-1"></i>Ping Test
+  <button type="button" class="btn btn-sm btn-light text-primary fw-semibold d-inline-flex align-items-center gap-1 shadow-sm" onclick="openPingTab()" title="Open Ping Simulator">
+    <i class="bi bi-activity"></i><span>Ping Test</span>
   </button>
-  <a href="{{ url_for('views.history', network_id=network.id) }}" class="btn btn-sm btn-outline-light" title="Event History &amp; Alerts">
+  <a href="{{ url_for('views.history', network_id=network.id) }}" class="btn btn-sm btn-outline-light d-inline-flex align-items-center justify-content-center" title="Event History &amp; Alerts">
     <i class="bi bi-clock-history"></i>
   </a>
-  <a href="{{ url_for('views.welcome') }}" class="btn btn-sm btn-secondary" title="Return to Dashboard">
-    <i class="bi bi-arrow-left me-1"></i>Exit
+  <a href="{{ url_for('views.welcome') }}" class="btn btn-sm btn-secondary d-inline-flex align-items-center gap-1" title="Return to Dashboard">
+    <i class="bi bi-arrow-left"></i><span class="d-none d-sm-inline">Exit</span>
   </a>
 </div>
 {% endblock %}
@@ -168,77 +168,103 @@
         </div>
       </div>
 
-      <!-- Power & Approval Toggles -->
-      <div class="row g-2 mb-3">
-        <div class="col-6">
-          <div class="form-check form-switch card p-2 bg-light border-0">
-            <input class="form-check-input" type="checkbox" id="prop-online" onchange="updateDeviceProperty('is_online', this.checked ? 1 : 0)">
-            <label class="form-check-label small fw-semibold" for="prop-online" id="prop-online-label">Online</label>
+      <!-- Power & Approval Toggles (Cramp-free full width layout) -->
+      <div class="ns-toggle-card mb-3">
+        <!-- Power Toggle Row -->
+        <div class="ns-toggle-row">
+          <div class="d-flex align-items-center gap-2">
+            <div class="ns-control-icon bg-success-subtle text-success">
+              <i class="bi bi-power"></i>
+            </div>
+            <div>
+              <div class="ns-toggle-title">Device Power</div>
+              <div class="ns-toggle-subtitle" id="prop-online-subtext">Online (Active)</div>
+            </div>
+          </div>
+          <div class="form-check form-switch m-0 pe-1">
+            <input class="form-check-input ns-custom-switch" type="checkbox" role="switch" id="prop-online" onchange="updateDeviceProperty('is_online', this.checked ? 1 : 0)">
           </div>
         </div>
-        <div class="col-6">
-          <div class="form-check form-switch card p-2 bg-light border-0">
-            <input class="form-check-input" type="checkbox" id="prop-approved" onchange="updateDeviceProperty('is_approved', this.checked ? 1 : 0)">
-            <label class="form-check-label small fw-semibold" for="prop-approved" id="prop-approved-label">Approved</label>
+
+        <div class="ns-toggle-divider"></div>
+
+        <!-- Access Approval Row -->
+        <div class="ns-toggle-row">
+          <div class="d-flex align-items-center gap-2">
+            <div class="ns-control-icon bg-primary-subtle text-primary">
+              <i class="bi bi-shield-check"></i>
+            </div>
+            <div>
+              <div class="ns-toggle-title">Security State</div>
+              <div class="ns-toggle-subtitle" id="prop-approved-subtext">Approved Host</div>
+            </div>
+          </div>
+          <div class="form-check form-switch m-0 pe-1">
+            <input class="form-check-input ns-custom-switch" type="checkbox" role="switch" id="prop-approved" onchange="updateDeviceProperty('is_approved', this.checked ? 1 : 0)">
           </div>
         </div>
       </div>
 
       <!-- Network Interface / IP Configuration -->
       <div id="prop-network-section" class="mb-3">
-        <label class="form-label small fw-bold text-uppercase text-muted" style="font-size:0.7rem;">IPv4 Configuration</label>
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label class="form-label small fw-bold text-uppercase text-muted mb-0" style="font-size:0.7rem; letter-spacing:0.4px;">IPv4 Configuration</label>
+          <span id="ip-mode-tag" class="badge bg-secondary-subtle text-secondary font-monospace" style="font-size:0.65rem;">STATIC</span>
+        </div>
         
-        <div class="btn-group btn-group-sm w-100 mb-2" role="group">
+        <div class="btn-group btn-group-sm w-100 mb-2.5" role="group">
           <input type="radio" class="btn-check" name="ip_mode_radio" id="mode-dhcp" autocomplete="off" onchange="changeDeviceIpMode('dhcp')">
-          <label class="btn btn-outline-primary" for="mode-dhcp"><i class="bi bi-server me-1"></i>DHCP</label>
+          <label class="btn btn-outline-primary py-1" for="mode-dhcp"><i class="bi bi-server me-1"></i>DHCP</label>
 
           <input type="radio" class="btn-check" name="ip_mode_radio" id="mode-static" autocomplete="off" onchange="changeDeviceIpMode('static')">
-          <label class="btn btn-outline-primary" for="mode-static"><i class="bi bi-gear-fill me-1"></i>Static</label>
+          <label class="btn btn-outline-primary py-1" for="mode-static"><i class="bi bi-gear-fill me-1"></i>Static</label>
         </div>
 
         <div class="mb-2">
-          <label class="form-label small text-muted mb-1">IPv4 Address</label>
+          <label class="form-label small text-muted mb-1" for="prop-ip">IPv4 Address</label>
           <div class="input-group input-group-sm">
             <input type="text" class="form-control font-monospace" id="prop-ip" placeholder="e.g. 192.168.10.15">
-            <button class="btn btn-outline-secondary" type="button" id="btn-save-ip" onclick="applyDeviceIpChange()" title="Save IP">
-              <i class="bi bi-check2"></i>
+            <button class="btn btn-primary d-none" type="button" id="btn-save-ip" onclick="applyDeviceIpChange()" title="Apply IP">
+              <i class="bi bi-check-lg me-1"></i>Apply
             </button>
           </div>
           <div id="prop-ip-error" class="small text-danger d-none mt-1"></div>
         </div>
 
         <div id="dhcp-controls" class="d-none mb-2">
-          <div class="d-flex gap-1">
-            <button type="button" class="btn btn-xs btn-outline-primary flex-grow-1" onclick="requestDhcpLease()">
-              <i class="bi bi-arrow-clockwise me-1"></i>Renew DHCP
+          <div class="d-flex gap-1.5">
+            <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1 d-inline-flex align-items-center justify-content-center" onclick="requestDhcpLease()">
+              <i class="bi bi-arrow-clockwise me-1"></i>Renew Lease
             </button>
-            <button type="button" class="btn btn-xs btn-outline-secondary" onclick="releaseDhcpLease()">
-              Release
+            <button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center" onclick="releaseDhcpLease()">
+              <i class="bi bi-x-circle me-1"></i>Release
             </button>
           </div>
         </div>
 
         <div class="mb-2">
           <label class="form-label small text-muted mb-1">Subnet Mask</label>
-          <input type="text" class="form-control form-control-sm font-monospace bg-light" id="prop-netmask" readonly>
+          <input type="text" class="form-control form-control-sm font-monospace bg-light text-muted" id="prop-netmask" readonly>
         </div>
 
         <div class="mb-2">
           <label class="form-label small text-muted mb-1">Default Gateway</label>
-          <input type="text" class="form-control form-control-sm font-monospace bg-light" id="prop-gateway" readonly>
+          <input type="text" class="form-control form-control-sm font-monospace bg-light text-muted" id="prop-gateway" readonly>
         </div>
 
         <div class="mb-2">
           <label class="form-label small text-muted mb-1">Hardware MAC Address</label>
-          <input type="text" class="form-control form-control-sm font-monospace bg-light" id="prop-mac" readonly>
+          <input type="text" class="form-control form-control-sm font-monospace bg-light text-muted" id="prop-mac" readonly>
         </div>
       </div>
 
       <!-- Conflict Alert Banner in Inspector -->
-      <div id="inspector-conflict-alert" class="alert alert-danger p-2 small d-none mb-3">
-        <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>IP Address Conflict!</div>
-        <div class="small mb-2">This device shares its IPv4 with another active interface on the LAN.</div>
-        <button type="button" class="btn btn-danger btn-xs w-100 shadow-sm" onclick="openConflictResolutionModalForSelected()">
+      <div id="inspector-conflict-alert" class="alert alert-danger p-2.5 small d-none mb-3 rounded-3 shadow-sm">
+        <div class="fw-bold d-flex align-items-center gap-1.5 text-danger mb-1">
+          <i class="bi bi-exclamation-triangle-fill"></i> IP Address Conflict!
+        </div>
+        <div class="small text-muted mb-2">This device shares its IPv4 with another active interface on the LAN.</div>
+        <button type="button" class="btn btn-danger btn-sm w-100 shadow-sm" onclick="openConflictResolutionModalForSelected()">
           <i class="bi bi-tools me-1"></i>Resolve Conflict Now
         </button>
       </div>
@@ -256,9 +282,14 @@
   <!-- BOTTOM: TABBED SIMULATION CONSOLE & TOOLS               -->
   <!-- ======================================================== -->
   <footer class="ns-bottom-panel" id="bottom-panel">
+    <!-- Console Drag Resizer -->
+    <div class="ns-console-resizer" id="console-resizer" title="Drag up or down to resize console">
+      <div class="ns-resizer-line"></div>
+    </div>
+
     <!-- Panel Tab Headers -->
     <div class="ns-console-header d-flex justify-content-between align-items-center">
-      <ul class="nav nav-tabs border-0" id="consoleTabs" role="tablist">
+      <ul class="nav nav-tabs border-0 flex-nowrap" id="consoleTabs" role="tablist">
         <li class="nav-item" role="presentation">
           <button class="nav-link active" id="tab-log-btn" data-bs-toggle="tab" data-bs-target="#tab-log" type="button" role="tab">
             <i class="bi bi-terminal me-1"></i>Simulation Console
@@ -282,12 +313,15 @@
         </li>
       </ul>
 
-      <div class="d-flex align-items-center gap-2 pe-3">
-        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="clearConsoleLog()" title="Clear Console Log">
-          <i class="bi bi-eraser me-1"></i>Clear
+      <div class="d-flex align-items-center gap-1.5 pe-3 flex-shrink-0">
+        <button type="button" class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1" onclick="clearConsoleLog()" title="Clear Console Log">
+          <i class="bi bi-eraser"></i><span>Clear</span>
         </button>
-        <button type="button" class="btn btn-xs btn-outline-secondary" onclick="toggleBottomPanelSize()" id="btn-toggle-panel" title="Maximize/Minimize">
-          <i class="bi bi-chevron-up" id="panel-toggle-icon"></i>
+        <button type="button" class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1" onclick="toggleBottomPanelMaximize()" id="btn-maximize-panel" title="Maximize/Restore Console">
+          <i class="bi bi-arrows-expand" id="panel-maximize-icon"></i>
+        </button>
+        <button type="button" class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1" onclick="toggleBottomPanelCollapse()" id="btn-collapse-panel" title="Collapse Console">
+          <i class="bi bi-chevron-down" id="panel-collapse-icon"></i>
         </button>
       </div>
     </div>

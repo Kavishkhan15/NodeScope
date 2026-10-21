@@ -20,6 +20,10 @@ const state = {
   hasUnsavedPositions: false,
 };
 
+// Node Dimensions for high-accuracy SVG anchoring & drag boundary checks
+const NODE_SIZE = 86;
+const NODE_HALF = 43;
+
 // Device Icon Map
 const DEVICE_ICONS = {
   router: 'bi-router text-primary',
@@ -45,6 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initWorkspace() {
   await refreshTopology();
   initGlobalDragHandlers();
+  initConsoleResizer();
+
+  // Re-render SVG connections smoothly on window resizing
+  window.addEventListener('resize', () => {
+    renderSvgConnections();
+  });
 }
 
 /**
@@ -122,7 +132,7 @@ function renderDeviceNodes() {
       ${dev.in_conflict ? '<div class="ns-node-conflict-badge" title="IP Conflict!"><i class="bi bi-exclamation-triangle-fill"></i></div>' : ''}
       ${!dev.is_approved ? '<div class="ns-node-unapproved-badge" title="Unapproved Rogue Device"><i class="bi bi-shield-x"></i></div>' : ''}
       <div class="ns-node-icon"><i class="bi ${iconClass}"></i></div>
-      <div class="ns-node-label text-truncate" title="${dev.name}">${escapeHtml(dev.name)}</div>
+      <div class="ns-node-label" title="${escapeHtml(dev.name)}">${escapeHtml(dev.name)}</div>
       <div class="ns-node-ip font-monospace">${dev.ip_address ? escapeHtml(dev.ip_address) : '<span class="text-muted">No IP</span>'}</div>
     `;
 
@@ -147,11 +157,11 @@ function renderSvgConnections() {
     const devB = state.devices.find(d => d.id === conn.device_b_id);
     if (!devA || !devB) return;
 
-    // Center coordinates of 72x72 node
-    const x1 = devA.pos_x + 36;
-    const y1 = devA.pos_y + 36;
-    const x2 = devB.pos_x + 36;
-    const y2 = devB.pos_y + 36;
+    // Accurate center coordinates based on NODE_HALF (86px / 2 = 43px)
+    const x1 = devA.pos_x + NODE_HALF;
+    const y1 = devA.pos_y + NODE_HALF;
+    const x2 = devB.pos_x + NODE_HALF;
+    const y2 = devB.pos_y + NODE_HALF;
 
     const isBothOnline = devA.is_online && devB.is_online && conn.status === 'active';
     const isWireless = conn.link_type === 'wireless';
@@ -185,12 +195,12 @@ function updateSvgLinesForDraggedNode(devId, newX, newY) {
       const line = document.getElementById(`link-${conn.id}`);
       if (!line) return;
       if (conn.device_a_id === devId) {
-        line.setAttribute('x1', newX + 36);
-        line.setAttribute('y1', newY + 36);
+        line.setAttribute('x1', newX + NODE_HALF);
+        line.setAttribute('y1', newY + NODE_HALF);
       }
       if (conn.device_b_id === devId) {
-        line.setAttribute('x2', newX + 36);
-        line.setAttribute('y2', newY + 36);
+        line.setAttribute('x2', newX + NODE_HALF);
+        line.setAttribute('y2', newY + NODE_HALF);
       }
     }
   });
@@ -211,9 +221,9 @@ function initGlobalDragHandlers() {
     let x = e.clientX - rect.left - state.dragOffset.x;
     let y = e.clientY - rect.top - state.dragOffset.y;
 
-    // Boundaries
-    x = Math.max(10, Math.min(x, rect.width - 90));
-    y = Math.max(10, Math.min(y, rect.height - 90));
+    // Boundaries accounting for 86px node width/height
+    x = Math.max(8, Math.min(x, rect.width - NODE_SIZE - 8));
+    y = Math.max(8, Math.min(y, rect.height - NODE_SIZE - 8));
 
     state.draggedNode.style.left = `${x}px`;
     state.draggedNode.style.top = `${y}px`;
@@ -315,8 +325,31 @@ function populateInspector(dev) {
 
   document.getElementById('prop-name').value = dev.name;
   document.getElementById('prop-type-label').textContent = `${dev.device_type.replace('_', ' ')}`;
-  document.getElementById('prop-online').checked = Boolean(dev.is_online);
-  document.getElementById('prop-approved').checked = Boolean(dev.is_approved);
+  
+  // Power State & Approval State with Dynamic Descriptive Subtext
+  const onlineCheck = document.getElementById('prop-online');
+  const onlineSubtext = document.getElementById('prop-online-subtext');
+  if (onlineCheck) onlineCheck.checked = Boolean(dev.is_online);
+  if (onlineSubtext) {
+    onlineSubtext.textContent = dev.is_online ? 'Online (Active on LAN)' : 'Powered Off (Offline)';
+    onlineSubtext.className = dev.is_online ? 'text-success d-block' : 'text-muted d-block';
+  }
+
+  const approvedCheck = document.getElementById('prop-approved');
+  const approvedSubtext = document.getElementById('prop-approved-subtext');
+  if (approvedCheck) approvedCheck.checked = Boolean(dev.is_approved);
+  if (approvedSubtext) {
+    approvedSubtext.textContent = dev.is_approved ? 'Approved LAN host' : 'Unapproved (Rogue Alert)';
+    approvedSubtext.className = dev.is_approved ? 'text-muted d-block' : 'text-danger fw-semibold d-block';
+  }
+
+  // IP Mode Tag
+  const ipModeTag = document.getElementById('ip-mode-tag');
+  if (ipModeTag) {
+    const isDhcp = dev.ip_mode === 'dhcp';
+    ipModeTag.textContent = isDhcp ? 'DHCP' : 'STATIC';
+    ipModeTag.className = `badge ${isDhcp ? 'bg-info text-dark' : 'bg-secondary'} font-monospace`;
+  }
 
   const iconClass = DEVICE_ICONS[dev.device_type] || 'bi-hdd text-secondary';
   document.getElementById('dev-icon-badge').innerHTML = `<i class="bi ${iconClass} fs-4"></i>`;
@@ -328,8 +361,8 @@ function populateInspector(dev) {
   } else {
     netSection.classList.remove('d-none');
     document.getElementById('prop-ip').value = dev.ip_address || '';
-    document.getElementById('prop-netmask').value = dev.subnet_mask || state.network.netmask;
-    document.getElementById('prop-gateway').value = dev.gateway || state.network.gateway;
+    document.getElementById('prop-netmask').value = dev.subnet_mask || (state.network ? state.network.netmask : '');
+    document.getElementById('prop-gateway').value = dev.gateway || (state.network ? state.network.gateway : '');
     document.getElementById('prop-mac').value = dev.mac_address;
 
     const isDhcp = dev.ip_mode === 'dhcp';
@@ -1001,21 +1034,107 @@ async function applyConflictResolution() {
 }
 
 /**
- * Helper: Toggle bottom console height
+ * Bottom Console Controls: Collapsible, Maximizable, and Drag Resizable
  */
-let isPanelMaximized = false;
-function toggleBottomPanelSize() {
-  const panel = document.getElementById('bottom-panel');
-  const icon = document.getElementById('panel-toggle-icon');
-  isPanelMaximized = !isPanelMaximized;
+let currentConsoleHeight = 190;
+let lastExpandedHeight = 190;
+let isConsoleCollapsed = false;
 
-  if (isPanelMaximized) {
-    panel.style.height = '350px';
-    icon.className = 'bi bi-chevron-down';
+function setConsoleHeight(height) {
+  const container = document.querySelector('.ns-workspace-container');
+  if (!container) return;
+
+  const minHeight = 38;
+  const maxHeight = Math.max(250, window.innerHeight - 180);
+  currentConsoleHeight = Math.max(minHeight, Math.min(height, maxHeight));
+
+  container.style.setProperty('--console-height', `${currentConsoleHeight}px`);
+
+  const collapseIcon = document.getElementById('panel-collapse-icon');
+  const maxIcon = document.getElementById('panel-maximize-icon');
+
+  if (currentConsoleHeight <= 42) {
+    isConsoleCollapsed = true;
+    if (collapseIcon) collapseIcon.className = 'bi bi-chevron-up';
   } else {
-    panel.style.height = '185px';
-    icon.className = 'bi bi-chevron-up';
+    isConsoleCollapsed = false;
+    lastExpandedHeight = currentConsoleHeight;
+    if (collapseIcon) collapseIcon.className = 'bi bi-chevron-down';
   }
+
+  if (maxIcon) {
+    maxIcon.className = (currentConsoleHeight >= 330) ? 'bi bi-arrows-collapse' : 'bi bi-arrows-expand';
+  }
+}
+
+function toggleBottomPanelCollapse() {
+  if (isConsoleCollapsed || currentConsoleHeight <= 42) {
+    const target = (lastExpandedHeight > 42) ? lastExpandedHeight : 190;
+    setConsoleHeight(target);
+  } else {
+    lastExpandedHeight = currentConsoleHeight;
+    setConsoleHeight(38);
+  }
+}
+
+function toggleBottomPanelMaximize() {
+  if (currentConsoleHeight >= 330) {
+    setConsoleHeight(190);
+  } else {
+    setConsoleHeight(360);
+  }
+}
+
+// Backwards compatibility alias
+function toggleBottomPanelSize() {
+  toggleBottomPanelMaximize();
+}
+
+/**
+ * Console Vertical Drag Resizer
+ */
+function initConsoleResizer() {
+  const resizer = document.getElementById('console-resizer');
+  if (!resizer) return;
+
+  let isResizing = false;
+  let startY = 0;
+  let startHeight = 0;
+
+  resizer.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    startY = e.clientY;
+    startHeight = currentConsoleHeight;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    const deltaY = startY - e.clientY; // dragging upwards increases height
+    const newHeight = startHeight + deltaY;
+    setConsoleHeight(newHeight);
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isResizing) {
+      isResizing = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+
+  // Clicking any tab automatically expands the console if currently collapsed
+  const tabs = document.querySelectorAll('#consoleTabs .nav-link');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      if (isConsoleCollapsed || currentConsoleHeight <= 42) {
+        const target = (lastExpandedHeight > 42) ? lastExpandedHeight : 190;
+        setConsoleHeight(target);
+      }
+    });
+  });
 }
 
 function escapeHtml(str) {

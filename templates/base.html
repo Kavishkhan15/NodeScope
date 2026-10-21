@@ -19,8 +19,8 @@
 
   <!-- Top Navigation Header -->
   <header class="ns-top-navbar navbar navbar-expand-lg">
-    <div class="container-fluid px-3 px-lg-4">
-      <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('views.welcome') }}">
+    <div class="container-fluid px-3 px-lg-4 d-flex align-items-center justify-content-between flex-nowrap">
+      <a class="navbar-brand d-flex align-items-center gap-2 flex-shrink-0 me-2" href="{{ url_for('views.welcome') }}">
         <div class="ns-navbar-logo">
           <img src="{{ url_for('static', filename='img/nodescope-logo.svg') }}" alt="NodeScope Logo" class="ns-navbar-logo-img">
         </div>
@@ -32,25 +32,25 @@
 
       {% block navbar_center %}{% endblock %}
 
-      <div class="d-flex align-items-center gap-2 ms-auto">
+      <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
         {% block navbar_actions %}
-          <a href="{{ url_for('views.welcome') }}" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-house me-1"></i>Saved Networks
+          <a href="{{ url_for('views.welcome') }}" class="btn btn-sm btn-outline-light d-inline-flex align-items-center gap-1">
+            <i class="bi bi-house"></i><span class="d-none d-sm-inline">Saved Networks</span>
           </a>
-          <button type="button" class="btn btn-sm btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#newNetworkModal">
-            <i class="bi bi-plus-circle me-1"></i>New Virtual LAN
+          <button type="button" class="btn btn-sm btn-primary shadow-sm d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#newNetworkModal">
+            <i class="bi bi-plus-circle"></i><span>New Virtual LAN</span>
           </button>
         {% endblock %}
       </div>
     </div>
   </header>
 
-  <!-- Flash Messages Banner -->
-  <div class="container-fluid px-3 px-lg-4 pt-2">
+  <!-- Floating Flash Notifications Toast (Never pushes workspace layout) -->
+  <div class="position-fixed top-0 end-0 p-3 ns-flash-toast-container" style="z-index: 2050; margin-top: 56px; max-width: 440px; pointer-events: none;">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show py-2 px-3 small shadow-sm" role="alert">
+          <div class="alert alert-{{ category }} alert-dismissible fade show py-2 px-3 small shadow-lg border-0 mb-2" role="alert" style="pointer-events: auto;">
             {% if category == 'success' %}<i class="bi bi-check-circle-fill me-2"></i>
             {% elif category == 'danger' %}<i class="bi bi-exclamation-octagon-fill me-2"></i>
             {% else %}<i class="bi bi-info-circle-fill me-2"></i>{% endif %}
