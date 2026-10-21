@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![NodeScope Logo](static/img/nodescope-logo.svg)
+<img src="static/img/nodescope-logo.svg" alt="NodeScope Logo" width="200" />
 
 ### A Complete Simulation-Based Computer Networks Laboratory & Engineering Mini-Project
 *Built with Python 3, Flask, SQLite, HTML5, CSS3, Bootstrap 5, and SVG Vector Graphics*
