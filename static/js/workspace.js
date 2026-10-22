@@ -756,7 +756,12 @@ function populatePingSelects() {
   src.innerHTML = '';
   dst.innerHTML = '';
 
-  state.devices.forEach(d => {
+  // Layer 3 Endpoints & Routers (devices with IP capability)
+  const l3Devices = state.devices.filter(d => d.device_type !== 'switch' && d.device_type !== 'access_point');
+  // Layer 2 Infrastructure (transparent multi-port forwarders)
+  const l2Devices = state.devices.filter(d => d.device_type === 'switch' || d.device_type === 'access_point');
+
+  l3Devices.forEach(d => {
     const optA = document.createElement('option');
     optA.value = d.id;
     optA.textContent = `${d.name} (${d.ip_address || 'No IP'})`;
@@ -768,9 +773,43 @@ function populatePingSelects() {
     dst.appendChild(optB);
   });
 
-  if (prevSrc && src.querySelector(`option[value="${prevSrc}"]`)) src.value = prevSrc;
-  if (prevDst && dst.querySelector(`option[value="${prevDst}"]`)) dst.value = prevDst;
-  else if (dst.options.length > 1) dst.selectedIndex = 1;
+  // Show Layer 2 switches/APs in a disabled optgroup for clarity
+  if (l2Devices.length > 0) {
+    const grpA = document.createElement('optgroup');
+    grpA.label = 'Layer 2 Transparent Devices (No IP)';
+    const grpB = document.createElement('optgroup');
+    grpB.label = 'Layer 2 Transparent Devices (No IP)';
+
+    l2Devices.forEach(d => {
+      const optA = document.createElement('option');
+      optA.value = d.id;
+      optA.disabled = true;
+      optA.textContent = `${d.name} [L2 Forwarding Hub]`;
+      grpA.appendChild(optA);
+
+      const optB = document.createElement('option');
+      optB.value = d.id;
+      optB.disabled = true;
+      optB.textContent = `${d.name} [L2 Forwarding Hub]`;
+      grpB.appendChild(optB);
+    });
+
+    src.appendChild(grpA);
+    dst.appendChild(grpB);
+  }
+
+  // Preserve previous selection if valid
+  if (prevSrc && src.querySelector(`option[value="${prevSrc}"]:not([disabled])`)) {
+    src.value = prevSrc;
+  }
+  if (prevDst && dst.querySelector(`option[value="${prevDst}"]:not([disabled])`)) {
+    dst.value = prevDst;
+  } else {
+    const validDstOptions = dst.querySelectorAll('option:not([disabled])');
+    if (validDstOptions.length > 1) {
+      validDstOptions[1].selected = true;
+    }
+  }
 }
 
 function openPingTab() {
