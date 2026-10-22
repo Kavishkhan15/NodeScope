@@ -142,12 +142,13 @@ Packet forwarding between two endpoints requires physical or link-layer path con
   - The engine updates SQLite, clears the conflict state, writes an audit record, and updates the virtual ARP table.
 
 ### 3.5 Deterministic ICMP Ping Pipeline (`simulator/ping.py`)
-Ping does not rely on random numbers; it evaluates an educational 5-step diagnostic chain:
+Ping does not rely on random numbers; it evaluates an educational 6-step diagnostic chain:
 1. **Source Power Check**: Source device must be powered on (`is_online == 1`).
 2. **Destination Power Check**: Destination device must be powered on.
 3. **Addressing Check**: Both devices must possess valid IPv4 addresses.
-4. **Subnet Compatibility Check**: Both devices must belong to the identical IPv4 network segment.
-5. **No Active Collision**: Destination IP must not be in a collision state (simulates duplicate ARP reply confusion).
-6. **Topological Graph Path**: Validates that an unbroken chain of switches/routers connects the two endpoints via BFS.
+4. **Security Approval & Access Control (NAC)**: Neither device can be an unapproved rogue device (`is_approved == 0`). Network Access Control blocks unapproved devices until an administrator toggles approval.
+5. **Subnet Compatibility Check**: Both devices must belong to the identical IPv4 network segment.
+6. **No Active Collision**: Destination IP must not be in a collision state (simulates duplicate ARP reply confusion).
+7. **Topological Graph Path**: Validates that an unbroken chain of switches/routers connects the two endpoints via BFS.
 
-If all 6 criteria hold, reports **ICMP Echo Reply** with calculated simulated Round-Trip Time (RTT: 1–4ms across switches, TTL: 64). If any criterion fails, reports the exact networking reason for failure (e.g. `Host Unreachable`, `Request Timed Out`, `Subnet Mismatch`).
+If all criteria hold, reports **ICMP Echo Reply** with calculated simulated Round-Trip Time (RTT: 1–4ms across switches, TTL: 64). If any criterion fails, reports the exact networking reason for failure (e.g. `Host Unreachable`, `Request Timed Out`, `Subnet Mismatch`, `UNAPPROVED NAC Block`).

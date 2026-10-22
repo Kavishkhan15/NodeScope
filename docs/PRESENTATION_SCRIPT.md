@@ -138,21 +138,27 @@
 
 ---
 
-## Phase 6: Live Demonstration — Part D: Rogue Device Detection & Console Resizing (1 Minute)
+## Phase 6: Live Demonstration — Part D: Rogue Device Detection & Security State Enforcement (1.5 Minutes)
 
 ### 🎬 Action on Screen:
 1. Load **Scenario 5 (Unapproved Rogue Device)**.
-2. Point out `Guest Laptop` with a yellow dashed warning border and shield icon.
-3. Click the bottom console drag handle (`#console-resizer`) and drag it up and down to show smooth resizing.
-4. Click the collapse button to show the 38px compact tab bar, then maximize it.
-5. Toggle `Guest Laptop`'s **Approved Host** switch in the property inspector to authorize it.
+2. Point out `Unidentified Personal Laptop` with a yellow dashed warning border and shield icon.
+3. Open the **Ping Simulator** tab, select **Source:** `Staff Workstation`, **Destination:** `Unidentified Personal Laptop`.
+4. Click **Simulate Ping** — show that ping is **BLOCKED by Network Access Control** with the message: `Ping blocked: Destination device 'Unidentified Personal Laptop' is UNAPPROVED`.
+5. Now select `Unidentified Personal Laptop` in the topology canvas, open the Device Properties Inspector, and toggle the **Approved Host** switch to ON (`Approved LAN host`).
+6. Re-click **Simulate Ping** in the bottom console — show that ping now **SUCCEEDS** immediately!
+7. Point out the bottom console drag resizer handle (`#console-resizer`) and show how it smoothly expands and collapses.
 
 ### 🗣️ What to Say:
-> *"Additionally, NodeScope includes basic Network Access Control (NAC) auditing.*
+> *"Additionally, NodeScope models active Network Access Control (NAC) and port security enforcement.*
 > 
-> *In Scenario 5, an unauthorized personal laptop has connected to the lab switch. NodeScope highlights it with an amber dashed border and logs a security audit event until an administrator verifies and toggles the **Approved Host** switch in the Device Properties panel.*
+> *In Scenario 5, an unauthorized personal laptop has connected to our access switch. Because it is unapproved (`is_approved = 0`), NodeScope flags it with a yellow dashed warning border and an active security alert.*
 > 
-> *Notice also the refined UI layout: the bottom simulation console features an interactive vertical drag handle allowing users to resize the console smoothly between 38px and 500px, or collapse it to maximize canvas real estate for large star and tree topologies."*
+> *Notice what happens when I try to run a Ping to this laptop from the Staff Workstation: the Ping Simulator **actively blocks the transmission**, reporting `Security State: Unapproved rogue device blocked by NAC`.*
+> 
+> *Now, once the network administrator verifies the user, selects the device, and toggles the **Approved Host** switch in the Device Properties Inspector, the security policy is updated in SQLite. If I re-run the ping, the ICMP echo reply succeeds immediately!*
+> 
+> *Also notice the refined UI: the bottom simulation console features an interactive vertical drag handle allowing users to resize the console smoothly between 38px and 500px, or collapse it to maximize canvas workspace for large topologies."*
 
 ---
 

@@ -69,7 +69,22 @@ def simulate_ping(db, network_id: int, src_id: int, dst_id: int) -> dict:
         return {'status': 'failed', 'message': msg, 'steps': steps, 'path': []}
     steps.append({'check': 'IP Configuration (Destination)', 'passed': True, 'detail': f"IP is {dst['ip_address']}"})
 
-    # 3. Subnet Membership Check
+    # 3. Security Approval & Network Access Control (NAC) Check
+    if not src['is_approved']:
+        msg = f"Ping blocked: Source device '{src['name']}' is UNAPPROVED (Network Access Control blocked rogue host)."
+        steps.append({'check': 'Security State (Source)', 'passed': False, 'detail': 'Unapproved rogue device blocked by NAC'})
+        _log_ping(db, network_id, src['name'], dst['name'], False, msg)
+        return {'status': 'failed', 'message': msg, 'steps': steps, 'path': []}
+    steps.append({'check': 'Security State (Source)', 'passed': True, 'detail': 'Approved authorized host'})
+
+    if not dst['is_approved']:
+        msg = f"Ping blocked: Destination device '{dst['name']}' is UNAPPROVED (Network Access Control blocked rogue host)."
+        steps.append({'check': 'Security State (Destination)', 'passed': False, 'detail': 'Unapproved rogue device blocked by NAC'})
+        _log_ping(db, network_id, src['name'], dst['name'], False, msg)
+        return {'status': 'failed', 'message': msg, 'steps': steps, 'path': []}
+    steps.append({'check': 'Security State (Destination)', 'passed': True, 'detail': 'Approved authorized host'})
+
+    # 4. Subnet Membership Check
     try:
         src_ip = ipaddress.ip_address(src['ip_address'])
         dst_ip = ipaddress.ip_address(dst['ip_address'])
@@ -91,7 +106,7 @@ def simulate_ping(db, network_id: int, src_id: int, dst_id: int) -> dict:
         return {'status': 'failed', 'message': msg, 'steps': steps, 'path': []}
     steps.append({'check': 'Subnet Membership (Destination)', 'passed': True, 'detail': f"{dst_ip} in {subnet}"})
 
-    # 4. IP Conflict Ambiguity Check
+    # 5. IP Conflict Ambiguity Check
     conflict_rows = db.execute("""
         SELECT ip_address FROM ip_conflicts 
         WHERE network_id = ? AND status = 'active'
@@ -112,7 +127,7 @@ def simulate_ping(db, network_id: int, src_id: int, dst_id: int) -> dict:
         return {'status': 'failed', 'message': msg, 'steps': steps, 'path': []}
     steps.append({'check': 'IP Conflict Check (Destination)', 'passed': True, 'detail': 'No IP collision'})
 
-    # 5. Physical/Data-Link Path Check (Topology BFS)
+    # 6. Physical/Data-Link Path Check (Topology BFS)
     has_path, path_devs, diag = find_path(db, network_id, src_id, dst_id)
     if not has_path:
         msg = f"Ping failed: No active communication path exists ({diag})."

@@ -45,3 +45,17 @@ def test_simulate_ping_conditions(app_ctx):
     res4 = simulate_ping(db, net_id, pc1, pc2)
     assert res4['status'] == 'failed'
     assert "active IP conflict" in res4['message']
+
+    # 5. Clear conflict and test unapproved device (NAC block)
+    db.execute("DELETE FROM devices WHERE id = ?", (pc3,))
+    detect_and_update_conflicts(db, net_id)
+
+    db.execute("UPDATE devices SET is_approved = 0 WHERE id = ?", (pc2,))
+    res5 = simulate_ping(db, net_id, pc1, pc2)
+    assert res5['status'] == 'failed'
+    assert "UNAPPROVED" in res5['message']
+
+    # Approve device -> ping succeeds
+    db.execute("UPDATE devices SET is_approved = 1 WHERE id = ?", (pc2,))
+    res6 = simulate_ping(db, net_id, pc1, pc2)
+    assert res6['status'] == 'success'

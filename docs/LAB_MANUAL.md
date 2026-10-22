@@ -124,15 +124,18 @@ To demonstrate network security auditing by identifying unauthorized (rogue) dev
 
 ### 4.3 Step-by-Step Procedure
 1. Load **Scenario 5 (Unapproved Rogue Device)**.
-2. Identify the unauthorized device: `Guest Laptop` is surrounded by a **yellow dashed warning border** and a shield alert badge.
-3. Click `Guest Laptop` to open the **Device Properties** panel.
-4. Observe the **Access Approval** control:
-   - The switch is OFF (`0`).
-   - The subtext indicates `Unapproved (Rogue Alert)`.
-5. Open the **Activity History** page from the top navigation (`/history/<id>`).
-6. Locate the audit record: `[SECURITY] Unapproved rogue device 'Guest Laptop' detected on network`.
-7. Return to the workspace, select `Guest Laptop`, and toggle the **Approved Host** switch to ON.
-8. Observe the canvas update: the warning halo clears, the shield icon turns into a standard operational node, and a verification audit event is logged.
+2. Identify the unauthorized device: `Unidentified Personal Laptop` is surrounded by a **yellow dashed warning border** and a shield alert badge.
+3. Open the **Ping Simulator** tab in the bottom console.
+4. Attempt to run a ping from `Staff Workstation (192.168.40.10)` to `Unidentified Personal Laptop (192.168.40.77)`.
+5. Observe the result: **PING FAILED / BLOCKED**. The diagnostic pipeline reports:
+   - `Security State (Destination): Unapproved rogue device blocked by NAC`.
+   - Packets are rejected by Network Access Control / port security policy.
+6. Now click `Unidentified Personal Laptop` to open the **Device Properties** panel.
+7. Observe the **Access Approval** control showing `Unapproved (Rogue Alert)`.
+8. Toggle the **Approved Host** switch to ON (`Approved LAN host`).
+9. Re-run the ping from `Staff Workstation` to `Unidentified Personal Laptop`.
+10. Observe the result: **PING SUCCESSFUL**. The security check now passes (`Authorized device`), the warning border clears, and full communication is restored.
+11. Open the **Activity History** page from the top navigation to view the complete audit trail.
 
 ---
 
