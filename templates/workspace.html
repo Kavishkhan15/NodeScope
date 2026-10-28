@@ -24,8 +24,14 @@
   <button type="button" class="btn btn-sm btn-outline-light d-inline-flex align-items-center gap-1" onclick="saveDevicePositions()" id="save-layout-btn" title="Save device coordinates">
     <i class="bi bi-floppy"></i><span class="d-none d-sm-inline">Save Layout</span>
   </button>
-  <button type="button" class="btn btn-sm btn-light text-primary fw-semibold d-inline-flex align-items-center gap-1 shadow-sm" onclick="openPingTab()" title="Open Ping Simulator">
-    <i class="bi bi-activity"></i><span>Ping Test</span>
+  <button type="button" class="btn btn-sm btn-primary fw-semibold d-inline-flex align-items-center gap-1 shadow-sm" onclick="openPacketTab()" title="Open Packet Simulator">
+    <i class="bi bi-send-check"></i><span>Packet Test</span>
+  </button>
+  <button type="button" class="btn btn-sm btn-light text-primary fw-semibold d-inline-flex align-items-center gap-1 shadow-sm" onclick="openRoutingTab()" title="Open Routing Protocols">
+    <i class="bi bi-diagram-2"></i><span>Routing</span>
+  </button>
+  <button type="button" class="btn btn-sm btn-outline-light d-inline-flex align-items-center gap-1" onclick="openPingTab()" title="Open Ping Simulator">
+    <i class="bi bi-activity"></i><span>Ping</span>
   </button>
   <a href="{{ url_for('views.history', network_id=network.id) }}" class="btn btn-sm btn-outline-light d-inline-flex align-items-center justify-content-center" title="Event History &amp; Alerts">
     <i class="bi bi-clock-history"></i>
@@ -46,7 +52,29 @@
     <div class="ns-panel-header">
       <i class="bi bi-hdd-stack me-1 text-primary"></i> Device Palette
     </div>
-    
+
+    <!-- Topology Builder Section -->
+    <div class="ns-panel-header border-top" style="background:#f0f3ff;">
+      <i class="bi bi-diagram-3 me-1 text-success"></i> Topology Builder
+    </div>
+    <div class="p-2 border-bottom">
+      <select class="form-select form-select-sm mb-1" id="topology-type-select">
+        <option value="star">⭐ Star</option>
+        <option value="bus">🚌 Bus</option>
+        <option value="ring">🔄 Ring</option>
+        <option value="mesh">🕸️ Mesh</option>
+        <option value="tree">🌲 Tree</option>
+        <option value="hybrid">🔀 Hybrid</option>
+      </select>
+      <div class="mb-1">
+        <label class="form-label small text-muted mb-0" style="font-size:0.72rem;">Node Count (3–8)</label>
+        <input type="number" class="form-control form-control-sm" id="topology-device-count" value="4" min="3" max="8">
+      </div>
+      <button class="btn btn-sm btn-success w-100" onclick="generateTopology()">
+        <i class="bi bi-magic me-1"></i>Generate Topology
+      </button>
+    </div>
+
     <div class="p-2 border-bottom bg-light">
       <button class="btn btn-sm w-100 btn-outline-primary" id="btn-toggle-connect-mode" onclick="toggleConnectMode()">
         <i class="bi bi-bezier2 me-1"></i><span id="connect-mode-label">Connect Link</span>
@@ -113,6 +141,8 @@
         </linearGradient>
       </defs>
       <g id="svg-links-group"></g>
+      <g id="svg-labels-group"></g>
+      <g id="svg-packet-layer"></g>
     </svg>
 
     <!-- HTML Draggable Device Nodes Layer -->
@@ -296,6 +326,16 @@
           </button>
         </li>
         <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-packet-btn" data-bs-toggle="tab" data-bs-target="#tab-packet" type="button" role="tab">
+            <i class="bi bi-send-check me-1 text-primary"></i>Packet Simulator
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-routing-btn" data-bs-toggle="tab" data-bs-target="#tab-routing" type="button" role="tab" onclick="loadRoutingTables()">
+            <i class="bi bi-diagram-2 me-1 text-success"></i>Routing Engine
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
           <button class="nav-link" id="tab-ping-btn" data-bs-toggle="tab" data-bs-target="#tab-ping" type="button" role="tab">
             <i class="bi bi-activity me-1"></i>Ping Simulator
           </button>
@@ -333,6 +373,154 @@
         <div id="simulation-event-stream" class="ns-event-stream">
           <!-- Populated dynamically -->
         </div>
+      </div>
+
+      <!-- Tab: Packet Transmission Simulator -->
+      <div class="tab-pane fade p-3" id="tab-packet" role="tabpanel">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-md-2 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1">Source Node</label>
+            <select class="form-select form-select-sm font-monospace" id="pkt-src-select"></select>
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1">Destination Node</label>
+            <select class="form-select form-select-sm font-monospace" id="pkt-dst-select"></select>
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1">Packet Type</label>
+            <select class="form-select form-select-sm" id="pkt-type-select">
+              <option value="DATA">📦 Data Packet (UDP/IP)</option>
+              <option value="PING">🔄 ICMP Ping (Echo Req/Rep)</option>
+              <option value="TCP">🤝 TCP SYN / ACK</option>
+            </select>
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1">Routing Algorithm</label>
+            <select class="form-select form-select-sm" id="pkt-algo-select">
+              <option value="dijkstra">⚡ Dijkstra (SPF - Link Cost)</option>
+              <option value="distance_vector">📊 Bellman-Ford (Dist Vector)</option>
+              <option value="rip">🔀 RIP (Hop-Count Limit 15)</option>
+              <option value="bfs">📏 Minimum Hops (BFS)</option>
+            </select>
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1">Speed</label>
+            <select class="form-select form-select-sm" id="pkt-speed-select">
+              <option value="1">1.0x Normal</option>
+              <option value="0.5">0.5x Slow-Mo (Visual)</option>
+              <option value="2">2.0x Fast</option>
+            </select>
+          </div>
+          <div class="col-md-2 col-sm-6 d-flex gap-1">
+            <button type="button" class="btn btn-primary btn-sm flex-grow-1 shadow-sm" id="btn-transmit-packet" onclick="executePacketTransmission()">
+              <i class="bi bi-send-check-fill me-1"></i>Send Packet
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearPacketAnimation()" title="Clear Animation &amp; Highlights">
+              <i class="bi bi-x-circle"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Packet Simulation Telemetry & Output -->
+        <div id="packet-telemetry-box" class="p-3 rounded-2 bg-light border d-none">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 pb-2 border-bottom">
+            <div class="d-flex align-items-center gap-2">
+              <span id="packet-status-badge" class="badge"></span>
+              <span id="packet-id-tag" class="badge bg-dark font-monospace"></span>
+              <span id="packet-protocol-tag" class="badge bg-secondary font-monospace"></span>
+            </div>
+            <div class="d-flex align-items-center gap-3 font-monospace small">
+              <div><span class="text-muted">Total Latency:</span> <strong id="packet-latency-val" class="text-primary">-</strong></div>
+              <div><span class="text-muted">Hop Count:</span> <strong id="packet-hops-val" class="text-success">-</strong></div>
+              <div><span class="text-muted">Metric Cost:</span> <strong id="packet-cost-val" class="text-info">-</strong></div>
+            </div>
+          </div>
+          <div id="packet-summary-message" class="small fw-semibold mb-2"></div>
+          <div id="packet-failure-reason" class="alert alert-danger py-1.5 px-2.5 small d-none mb-2"></div>
+
+          <!-- Hop Telemetry Table -->
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered bg-white font-monospace mb-0" style="font-size:0.78rem;">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:50px;">Hop</th>
+                  <th>Node Name</th>
+                  <th>Type</th>
+                  <th>IPv4 Address</th>
+                  <th>Link ID</th>
+                  <th>Simulated Action / State</th>
+                  <th>Hop Delay</th>
+                  <th>Cumulative</th>
+                </tr>
+              </thead>
+              <tbody id="packet-hops-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Routing Engine & Routing Tables -->
+      <div class="tab-pane fade p-3" id="tab-routing" role="tabpanel">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1">Routing Protocol / Algorithm</label>
+            <select class="form-select form-select-sm" id="routing-algo-select" onchange="loadRoutingTables()">
+              <option value="link_state">⚡ Link-State (OSPF / Dijkstra SPF)</option>
+              <option value="distance_vector">📊 Distance Vector (Bellman-Ford)</option>
+              <option value="rip">🔀 RIP (Hop Count, 15 Max Metric)</option>
+            </select>
+          </div>
+          <div class="col-md-4 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1">Loop Avoidance / Convergence Features</label>
+            <div class="d-flex align-items-center gap-3 pt-1">
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="checkbox" id="chk-split-horizon" checked onchange="loadRoutingTables()">
+                <label class="form-check-label small" for="chk-split-horizon">Split Horizon</label>
+              </div>
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="checkbox" id="chk-poison-reverse" onchange="loadRoutingTables()">
+                <label class="form-check-label small" for="chk-poison-reverse">Poison Reverse</label>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-5 col-sm-12 text-md-end pt-2">
+            <button type="button" class="btn btn-sm btn-outline-success me-1" onclick="loadRoutingTables()">
+              <i class="bi bi-arrow-clockwise me-1"></i>Recompute Tables
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="highlightAllOptimalPaths()">
+              <i class="bi bi-diagram-3-fill me-1"></i>Visualize SPF Paths
+            </button>
+          </div>
+        </div>
+
+        <!-- Protocol Theory & Convergence Status Box -->
+        <div id="routing-protocol-theory" class="alert alert-info py-2 px-3 small mb-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <span id="routing-theory-text" class="fw-medium"></span>
+            <span id="routing-convergence-badge" class="badge bg-success ms-2 font-monospace">Converged</span>
+          </div>
+        </div>
+
+        <!-- LSDB View (Shown for Link-State) -->
+        <div id="routing-lsdb-container" class="mb-3 d-none">
+          <h6 class="small fw-bold text-uppercase text-muted mb-2"><i class="bi bi-database me-1"></i>Link State Database (LSDB) Adjacency LSA Matrix</h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered table-striped font-monospace mb-0" style="font-size:0.78rem;">
+              <thead class="table-dark">
+                <tr>
+                  <th>Router LSA Node</th>
+                  <th>IP Address</th>
+                  <th>Direct Neighbors &amp; Link Costs</th>
+                </tr>
+              </thead>
+              <tbody id="routing-lsdb-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Routing Tables Grid -->
+        <h6 class="small fw-bold text-uppercase text-muted mb-2"><i class="bi bi-table me-1"></i>Computed Node Forwarding Tables (FIB / Routing Tables)</h6>
+        <div id="routing-tables-grid" class="row g-2"></div>
       </div>
 
       <!-- Tab 2: Ping Simulator -->
@@ -461,6 +649,84 @@
           <button type="button" class="btn btn-danger btn-sm px-4 shadow-sm" id="btn-apply-resolution" onclick="applyConflictResolution()">
             <i class="bi bi-check-circle-fill me-1"></i>Apply Resolution &amp; Verify
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- LINK PROPERTIES & FAULT SIMULATION MODAL                 -->
+  <!-- ======================================================== -->
+  <div class="modal fade" id="linkConfigModal" tabindex="-1" aria-labelledby="linkConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-dark text-white">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-bezier2 fs-5 text-primary"></i>
+            <h5 class="modal-title mb-0" id="linkConfigModalLabel">Link Properties &amp; Fault Injection</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <input type="hidden" id="modal-link-id">
+          
+          <div class="alert alert-secondary py-2 px-3 small mb-3 d-flex align-items-center justify-content-between">
+            <div>
+              <span class="text-muted">Link Segment:</span>
+              <strong id="modal-link-nodes" class="ms-1 font-monospace"></strong>
+            </div>
+            <span id="modal-link-status-badge" class="badge"></span>
+          </div>
+
+          <!-- Fault Injection Toggle -->
+          <div class="card mb-3 border-danger-subtle bg-light">
+            <div class="card-body p-3">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="mb-0 fw-bold small text-danger"><i class="bi bi-scissors me-1"></i>Link State / Cable Fault</h6>
+                  <div class="small text-muted" id="modal-link-status-text">Active connection transmitting packets</div>
+                </div>
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input fs-5" type="checkbox" role="switch" id="modal-link-status-switch" onchange="onModalLinkStatusToggle(this.checked)">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold text-muted mb-1">Routing Cost Metric (1–100)</label>
+              <input type="number" class="form-control form-control-sm font-monospace" id="modal-link-cost" min="1" max="100" value="1">
+              <div class="form-text" style="font-size:0.7rem;">Used by Dijkstra / OSPF to compute lowest-cost path.</div>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold text-muted mb-1">Link Latency Delay (ms)</label>
+              <input type="number" class="form-control form-control-sm font-monospace" id="modal-link-delay" min="1" max="500" value="2">
+              <div class="form-text" style="font-size:0.7rem;">Simulated transmission delay per hop.</div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-muted mb-1">Physical Medium / Link Type</label>
+            <select class="form-select form-select-sm" id="modal-link-type">
+              <option value="wired">🔌 Ethernet / Wired (Standard)</option>
+              <option value="wireless">📶 802.11 Wi-Fi / Wireless</option>
+              <option value="backbone">⚡ High-Speed Fiber Backbone</option>
+            </select>
+          </div>
+
+          <div id="modal-link-error" class="alert alert-danger d-none py-1.5 px-2.5 small"></div>
+        </div>
+        <div class="modal-footer bg-light d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteLinkFromModal()">
+            <i class="bi bi-trash me-1"></i>Delete Link
+          </button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary btn-sm px-3 shadow-sm" onclick="saveLinkModalChanges()">
+              <i class="bi bi-check-lg me-1"></i>Save Link Changes
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -245,9 +245,88 @@ code {
   stroke-dasharray: 4 4;
 }
 
+.ns-topology-link.link-down {
+  stroke: #dc3545 !important;
+  stroke-dasharray: 6 4 !important;
+  stroke-width: 3.5px;
+}
+
+.ns-topology-link.backbone {
+  stroke: #7209b7;
+  stroke-width: 4px;
+}
+
 .ns-topology-link.wireless {
   stroke-dasharray: 6 4;
   stroke: #4CC9F0;
+}
+
+.ns-topology-link.highlighted-path {
+  stroke: #ffaa00 !important;
+  stroke-width: 5.5px !important;
+  stroke-dasharray: 8 4 !important;
+  animation: ns-dash-flow 1s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(255, 170, 0, 0.8));
+}
+
+@keyframes ns-dash-flow {
+  to { stroke-dashoffset: -24; }
+}
+
+/* Link Metric & Status SVG Badges */
+.ns-link-badge {
+  cursor: pointer;
+  pointer-events: all;
+}
+
+.ns-link-badge rect {
+  fill: #ffffff;
+  stroke: #94a3b8;
+  stroke-width: 1px;
+  rx: 4;
+  ry: 4;
+  transition: all 0.2s ease;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+}
+
+.ns-link-badge:hover rect {
+  stroke: #4361ee;
+  fill: #eef2ff;
+  stroke-width: 1.5px;
+}
+
+.ns-link-badge.down rect {
+  stroke: #dc3545;
+  fill: #fee2e2;
+}
+
+.ns-link-badge text {
+  font-family: var(--ns-mono);
+  font-size: 10px;
+  font-weight: 700;
+  fill: #334155;
+  text-anchor: middle;
+  dominant-baseline: central;
+  user-select: none;
+  pointer-events: none;
+}
+
+.ns-link-badge.down text {
+  fill: #dc3545;
+}
+
+/* Animated Packet Marker */
+.ns-packet-marker {
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(67, 97, 238, 0.9));
+}
+
+.ns-packet-marker.reply {
+  filter: drop-shadow(0 0 8px rgba(6, 214, 160, 0.9));
+}
+
+.ns-packet-marker.dropped {
+  filter: drop-shadow(0 0 8px rgba(239, 35, 60, 0.95));
 }
 
 .ns-nodes-layer {

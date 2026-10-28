@@ -18,6 +18,9 @@ const state = {
   draggedNode: null,
   dragOffset: { x: 0, y: 0 },
   hasUnsavedPositions: false,
+  highlightedLinks: [],
+  activePacketTimer: null,
+  currentEditingLinkId: null,
 };
 
 // Node Dimensions for high-accuracy SVG anchoring & drag boundary checks
@@ -80,6 +83,7 @@ async function refreshTopology() {
     updateConflictBadges();
     renderEventStream(data.recent_events || []);
     populatePingSelects();
+    populatePacketSelects();
     renderConflictsTab();
 
     // If selected device still exists, refresh inspector
@@ -149,8 +153,10 @@ function renderDeviceNodes() {
  */
 function renderSvgConnections() {
   const g = document.getElementById('svg-links-group');
+  const labelsG = document.getElementById('svg-labels-group');
   if (!g) return;
   g.innerHTML = '';
+  if (labelsG) labelsG.innerHTML = '';
 
   state.connections.forEach(conn => {
     const devA = state.devices.find(d => d.id === conn.device_a_id);
@@ -163,8 +169,11 @@ function renderSvgConnections() {
     const x2 = devB.pos_x + NODE_HALF;
     const y2 = devB.pos_y + NODE_HALF;
 
-    const isBothOnline = devA.is_online && devB.is_online && conn.status === 'active';
+    const isConnDown = (conn.status === 'down');
+    const isBothOnline = devA.is_online && devB.is_online && !isConnDown;
     const isWireless = conn.link_type === 'wireless';
+    const isBackbone = conn.link_type === 'backbone';
+    const isHighlighted = (state.highlightedLinks || []).includes(conn.id);
 
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', x1);
@@ -172,38 +181,69 @@ function renderSvgConnections() {
     line.setAttribute('x2', x2);
     line.setAttribute('y2', y2);
     line.id = `link-${conn.id}`;
-    line.className.baseVal = `ns-topology-link ${isBothOnline ? 'active' : 'inactive'} ${isWireless ? 'wireless' : 'wired'}`;
+
+    let lineClasses = ['ns-topology-link'];
+    if (isConnDown) {
+      lineClasses.push('link-down');
+    } else if (isBothOnline) {
+      lineClasses.push('active');
+    } else {
+      lineClasses.push('inactive');
+    }
+    if (isWireless) lineClasses.push('wireless');
+    if (isBackbone) lineClasses.push('backbone');
+    if (isHighlighted) lineClasses.push('highlighted-path');
+
+    line.className.baseVal = lineClasses.join(' ');
     
-    // Clicking connection gives delete option
+    // Clicking connection opens Link Inspector / Fault Injection modal
     line.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (confirm(`Remove network connection between '${devA.name}' and '${devB.name}'?`)) {
-        removeConnection(conn.id);
-      }
+      openLinkModal(conn.id);
     });
 
     g.appendChild(line);
+
+    // Link Cost & State Badge at midpoint
+    if (labelsG) {
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+
+      const badgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      badgeGroup.setAttribute('class', `ns-link-badge ${isConnDown ? 'down' : ''}`);
+      badgeGroup.setAttribute('transform', `translate(${mx}, ${my})`);
+      badgeGroup.id = `link-badge-${conn.id}`;
+
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', isConnDown ? '-28' : '-24');
+      rect.setAttribute('y', '-9');
+      rect.setAttribute('width', isConnDown ? '56' : '48');
+      rect.setAttribute('height', '18');
+      rect.setAttribute('rx', '4');
+
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', '0');
+      text.setAttribute('y', '0');
+      text.textContent = isConnDown ? '✕ CUT' : `⚡${conn.cost || 1}`;
+
+      badgeGroup.appendChild(rect);
+      badgeGroup.appendChild(text);
+
+      badgeGroup.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openLinkModal(conn.id);
+      });
+
+      labelsG.appendChild(badgeGroup);
+    }
   });
 }
 
 /**
- * Dynamic SVG line update during drag (high performance)
+ * Dynamic SVG line and label update during drag
  */
 function updateSvgLinesForDraggedNode(devId, newX, newY) {
-  state.connections.forEach(conn => {
-    if (conn.device_a_id === devId || conn.device_b_id === devId) {
-      const line = document.getElementById(`link-${conn.id}`);
-      if (!line) return;
-      if (conn.device_a_id === devId) {
-        line.setAttribute('x1', newX + NODE_HALF);
-        line.setAttribute('y1', newY + NODE_HALF);
-      }
-      if (conn.device_b_id === devId) {
-        line.setAttribute('x2', newX + NODE_HALF);
-        line.setAttribute('y2', newY + NODE_HALF);
-      }
-    }
-  });
+  renderSvgConnections();
 }
 
 /**
@@ -1184,4 +1224,591 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+
+/* ======================================================================
+ * Interactive Topology Builder, Routing Protocols & Packet Transmission
+ * ====================================================================== */
+
+/**
+ * Auto-generate network topology (Star, Bus, Ring, Mesh, Tree, Hybrid)
+ */
+async function generateTopology() {
+  const select = document.getElementById('topology-type-select');
+  const countInput = document.getElementById('topology-device-count');
+  const type = select ? select.value : 'star';
+  const count = countInput ? parseInt(countInput.value, 10) : 4;
+
+  if (state.devices.length > 0) {
+    if (!confirm(`Generate a new ${type.toUpperCase()} topology? This will clear the current canvas and rebuild the network with optimized positions.`)) {
+      return;
+    }
+  }
+
+  try {
+    const res = await fetch(`/api/networks/${state.networkId}/topology/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topology_type: type, options: { device_count: count } })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await refreshTopology();
+      centerTopologyView();
+    } else {
+      alert(data.error || 'Failed to generate topology.');
+    }
+  } catch (err) {
+    alert('Topology generation error: ' + err.message);
+  }
+}
+
+/**
+ * Open Packet Simulator Tab
+ */
+function openPacketTab() {
+  const btn = document.getElementById('tab-packet-btn');
+  if (btn) {
+    const tab = new bootstrap.Tab(btn);
+    tab.show();
+    if (isConsoleCollapsed || currentConsoleHeight <= 42) {
+      setConsoleHeight(lastExpandedHeight > 42 ? lastExpandedHeight : 240);
+    }
+  }
+}
+
+/**
+ * Open Routing Engine Tab
+ */
+function openRoutingTab() {
+  const btn = document.getElementById('tab-routing-btn');
+  if (btn) {
+    const tab = new bootstrap.Tab(btn);
+    tab.show();
+    loadRoutingTables();
+    if (isConsoleCollapsed || currentConsoleHeight <= 42) {
+      setConsoleHeight(lastExpandedHeight > 42 ? lastExpandedHeight : 260);
+    }
+  }
+}
+
+/**
+ * Populate Packet Simulator dropdowns
+ */
+function populatePacketSelects() {
+  const src = document.getElementById('pkt-src-select');
+  const dst = document.getElementById('pkt-dst-select');
+  if (!src || !dst) return;
+
+  const prevSrc = src.value;
+  const prevDst = dst.value;
+
+  src.innerHTML = '';
+  dst.innerHTML = '';
+
+  state.devices.forEach(d => {
+    const optA = document.createElement('option');
+    optA.value = d.id;
+    optA.textContent = `${d.name} (${d.ip_address || d.device_type})`;
+    src.appendChild(optA);
+
+    const optB = document.createElement('option');
+    optB.value = d.id;
+    optB.textContent = `${d.name} (${d.ip_address || d.device_type})`;
+    dst.appendChild(optB);
+  });
+
+  if (prevSrc && src.querySelector(`option[value="${prevSrc}"]`)) {
+    src.value = prevSrc;
+  }
+  if (prevDst && dst.querySelector(`option[value="${prevDst}"]`)) {
+    dst.value = prevDst;
+  } else if (dst.options.length > 1) {
+    dst.selectedIndex = dst.options.length - 1;
+  }
+}
+
+/**
+ * Link Modal: Inspect link, inject cable cut / restore, edit metric and latency
+ */
+function openLinkModal(connId) {
+  state.currentEditingLinkId = connId;
+  const conn = state.connections.find(c => c.id === connId);
+  if (!conn) return;
+
+  const devA = state.devices.find(d => d.id === conn.device_a_id);
+  const devB = state.devices.find(d => d.id === conn.device_b_id);
+  const nameA = devA ? devA.name : `Node ${conn.device_a_id}`;
+  const nameB = devB ? devB.name : `Node ${conn.device_b_id}`;
+
+  document.getElementById('modal-link-id').value = conn.id;
+  document.getElementById('modal-link-nodes').textContent = `${nameA} ↔ ${nameB}`;
+  document.getElementById('modal-link-cost').value = conn.cost || 1;
+  document.getElementById('modal-link-delay').value = conn.delay_ms || 2;
+  document.getElementById('modal-link-type').value = conn.link_type || 'wired';
+
+  const sw = document.getElementById('modal-link-status-switch');
+  const isActive = (conn.status === 'active');
+  sw.checked = isActive;
+  onModalLinkStatusToggle(isActive);
+
+  const modalEl = document.getElementById('linkConfigModal');
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+}
+
+function onModalLinkStatusToggle(isActive) {
+  const badge = document.getElementById('modal-link-status-badge');
+  const text = document.getElementById('modal-link-status-text');
+  if (isActive) {
+    badge.className = 'badge bg-success';
+    badge.textContent = 'ACTIVE / UP';
+    text.textContent = 'Link is operational and actively forwarding frames and packets.';
+    text.className = 'small text-success';
+  } else {
+    badge.className = 'badge bg-danger';
+    badge.textContent = 'SEVERED / DOWN';
+    text.textContent = 'Simulating physical cable break / fault. Packets will drop or reroute.';
+    text.className = 'small text-danger fw-semibold';
+  }
+}
+
+async function saveLinkModalChanges() {
+  const connId = parseInt(document.getElementById('modal-link-id').value, 10);
+  const isActive = document.getElementById('modal-link-status-switch').checked;
+  const cost = parseInt(document.getElementById('modal-link-cost').value, 10) || 1;
+  const delay = parseInt(document.getElementById('modal-link-delay').value, 10) || 2;
+  const linkType = document.getElementById('modal-link-type').value;
+
+  try {
+    const res = await fetch(`/api/connections/${connId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: isActive ? 'active' : 'down',
+        cost: cost,
+        delay_ms: delay,
+        link_type: linkType
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const modalEl = document.getElementById('linkConfigModal');
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+      await refreshTopology();
+      if (document.getElementById('tab-routing').classList.contains('active')) {
+        loadRoutingTables();
+      }
+    } else {
+      alert(data.error || 'Failed to update link.');
+    }
+  } catch (err) {
+    alert('Link update error: ' + err.message);
+  }
+}
+
+async function deleteLinkFromModal() {
+  const connId = parseInt(document.getElementById('modal-link-id').value, 10);
+  if (!confirm("Permanently delete this network link connection?")) return;
+
+  try {
+    const res = await fetch(`/api/connections/${connId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      const modalEl = document.getElementById('linkConfigModal');
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+      await refreshTopology();
+    } else {
+      alert(data.error || 'Failed to delete link.');
+    }
+  } catch (err) {
+    alert('Delete link error: ' + err.message);
+  }
+}
+
+/**
+ * End-to-End Packet Transmission Simulator
+ */
+function clearPacketAnimation() {
+  if (state.activePacketTimer) {
+    clearTimeout(state.activePacketTimer);
+    state.activePacketTimer = null;
+  }
+  const packetLayer = document.getElementById('svg-packet-layer');
+  if (packetLayer) packetLayer.innerHTML = '';
+  state.highlightedLinks = [];
+  document.querySelectorAll('.ns-device-node').forEach(n => {
+    n.classList.remove('pulse-node', 'conflict-halo');
+  });
+  renderSvgConnections();
+}
+
+async function executePacketTransmission() {
+  const srcId = document.getElementById('pkt-src-select').value;
+  const dstId = document.getElementById('pkt-dst-select').value;
+  const pktType = document.getElementById('pkt-type-select').value;
+  const algo = document.getElementById('pkt-algo-select').value;
+  const speed = parseFloat(document.getElementById('pkt-speed-select').value) || 1.0;
+
+  if (!srcId || !dstId) {
+    alert("Please select both a source and destination device.");
+    return;
+  }
+
+  clearPacketAnimation();
+
+  const btn = document.getElementById('btn-transmit-packet');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Routing...';
+
+  try {
+    const res = await fetch(`/api/networks/${state.networkId}/packet/transmit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        source_id: parseInt(srcId, 10),
+        destination_id: parseInt(dstId, 10),
+        packet_type: pktType,
+        algorithm: algo
+      })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send-check-fill me-1"></i>Send Packet';
+
+    if (!data.success) {
+      alert(data.error || 'Transmission failed to start.');
+      return;
+    }
+
+    const r = data.result;
+    displayPacketTelemetry(r);
+
+    // Highlight links in path
+    state.highlightedLinks = r.links_used || [];
+    renderSvgConnections();
+
+    // Start hop-by-hop canvas visual animation
+    animatePacketHopByHop(r, speed);
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send-check-fill me-1"></i>Send Packet';
+    alert('Transmission error: ' + err.message);
+  }
+}
+
+function displayPacketTelemetry(r) {
+  const box = document.getElementById('packet-telemetry-box');
+  const badge = document.getElementById('packet-status-badge');
+  const idTag = document.getElementById('packet-id-tag');
+  const protoTag = document.getElementById('packet-protocol-tag');
+  const latencyVal = document.getElementById('packet-latency-val');
+  const hopsVal = document.getElementById('packet-hops-val');
+  const costVal = document.getElementById('packet-cost-val');
+  const summaryMsg = document.getElementById('packet-summary-message');
+  const failBox = document.getElementById('packet-failure-reason');
+  const tbody = document.getElementById('packet-hops-tbody');
+
+  box.classList.remove('d-none');
+  idTag.textContent = r.packet_id || 'PKT';
+  protoTag.textContent = `${r.packet_type} (${(r.algorithm || 'SPF').toUpperCase()})`;
+
+  if (r.status === 'delivered') {
+    badge.className = 'badge bg-success';
+    badge.textContent = 'DELIVERED (SUCCESS)';
+    failBox.classList.add('d-none');
+  } else {
+    badge.className = 'badge bg-danger';
+    badge.textContent = 'DROPPED / FAILED';
+    failBox.classList.remove('d-none');
+    failBox.textContent = `Diagnostic Drop Reason: ${r.failure_reason || r.message}`;
+  }
+
+  latencyVal.textContent = `${r.total_latency_ms || 0} ms`;
+  hopsVal.textContent = r.hops_count || 0;
+  costVal.textContent = (r.total_cost !== undefined) ? r.total_cost : '-';
+  summaryMsg.textContent = r.message;
+
+  // Build hop table rows
+  tbody.innerHTML = '';
+  const hops = (r.packet_type === 'PING' && r.forward_hops) ? [...r.forward_hops, ...(r.return_hops || [])] : (r.hops || []);
+
+  if (hops.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No hop forwarding occurred (Transmission aborted).</td></tr>`;
+  } else {
+    hops.forEach(h => {
+      const tr = document.createElement('tr');
+      const isFailed = (h.status === 'dropped' || h.status === 'failed');
+      if (isFailed) tr.className = 'table-danger';
+      tr.innerHTML = `
+        <td class="fw-bold">${h.step || h.hop || 1}</td>
+        <td><strong>${escapeHtml(h.device_name || h.node_name || 'Node')}</strong></td>
+        <td><span class="badge bg-secondary-subtle text-secondary">${escapeHtml(h.device_type || 'host')}</span></td>
+        <td class="font-monospace">${escapeHtml(h.ip_address || '-')}</td>
+        <td class="font-monospace">${h.link_id ? '#' + h.link_id : '-'}</td>
+        <td>
+          <span class="badge ${isFailed ? 'bg-danger' : 'bg-primary-subtle text-primary'} me-1">
+            ${escapeHtml(h.action || (isFailed ? 'DROPPED' : 'FORWARDED'))}
+          </span>
+          <span class="small text-muted">${escapeHtml(h.notes || '')}</span>
+        </td>
+        <td>${h.delay_ms || 2}ms</td>
+        <td class="fw-semibold text-primary">${h.cumulative_latency_ms || h.delay_ms || 0}ms</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+function animatePacketHopByHop(result, speed) {
+  const layer = document.getElementById('svg-packet-layer');
+  if (!layer) return;
+  layer.innerHTML = '';
+
+  const pathIds = result.forward_path_ids || (result.path ? result.path.map(d => d.id) : []);
+  if (!pathIds || pathIds.length === 0) return;
+
+  const hops = pathIds.map(id => state.devices.find(d => d.id === id)).filter(Boolean);
+  if (hops.length === 0) return;
+
+  const token = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  token.setAttribute('r', '9');
+  token.setAttribute('fill', '#4361EE');
+  token.setAttribute('stroke', '#ffffff');
+  token.setAttribute('stroke-width', '2.5');
+  token.setAttribute('class', 'ns-packet-marker');
+  layer.appendChild(token);
+
+  let currentStep = 0;
+  const stepDuration = 550 / speed;
+
+  function moveToNextHop() {
+    if (currentStep >= hops.length) {
+      if (result.packet_type === 'PING' && result.request_delivered && result.return_hops) {
+        token.setAttribute('fill', '#06D6A0');
+        token.setAttribute('class', 'ns-packet-marker reply');
+        animateReturnHop(0);
+      }
+      return;
+    }
+
+    const dev = hops[currentStep];
+    const targetX = dev.pos_x + NODE_HALF;
+    const targetY = dev.pos_y + NODE_HALF;
+
+    const nodeEl = document.getElementById(`node-${dev.id}`);
+    if (nodeEl) {
+      nodeEl.classList.add('selected');
+      setTimeout(() => {
+        if (state.selectedDeviceId !== dev.id) nodeEl.classList.remove('selected');
+      }, stepDuration * 0.9);
+    }
+
+    if (currentStep === 0) {
+      token.setAttribute('cx', targetX);
+      token.setAttribute('cy', targetY);
+      currentStep++;
+      state.activePacketTimer = setTimeout(moveToNextHop, stepDuration);
+      return;
+    }
+
+    const prevDev = hops[currentStep - 1];
+    const startX = prevDev.pos_x + NODE_HALF;
+    const startY = prevDev.pos_y + NODE_HALF;
+
+    let startTime = null;
+    function animateLeg(time) {
+      if (!startTime) startTime = time;
+      const progress = Math.min((time - startTime) / stepDuration, 1);
+      const curX = startX + (targetX - startX) * progress;
+      const curY = startY + (targetY - startY) * progress;
+      token.setAttribute('cx', curX);
+      token.setAttribute('cy', curY);
+
+      if (progress < 1) {
+        requestAnimationFrame(animateLeg);
+      } else {
+        if (result.status === 'failed' && currentStep === hops.length - 1) {
+          token.setAttribute('fill', '#EF233C');
+          token.setAttribute('class', 'ns-packet-marker dropped');
+          if (nodeEl) nodeEl.classList.add('conflict-halo');
+          return;
+        }
+        currentStep++;
+        state.activePacketTimer = setTimeout(moveToNextHop, 80 / speed);
+      }
+    }
+    requestAnimationFrame(animateLeg);
+  }
+
+  function animateReturnHop(retStep) {
+    const returnHops = (result.forward_path_ids || []).slice().reverse().map(id => state.devices.find(d => d.id === id)).filter(Boolean);
+    if (retStep >= returnHops.length) return;
+
+    const dev = returnHops[retStep];
+    const targetX = dev.pos_x + NODE_HALF;
+    const targetY = dev.pos_y + NODE_HALF;
+
+    if (retStep === 0) {
+      animateReturnHop(retStep + 1);
+      return;
+    }
+
+    const prevDev = returnHops[retStep - 1];
+    const startX = prevDev.pos_x + NODE_HALF;
+    const startY = prevDev.pos_y + NODE_HALF;
+
+    let startTime = null;
+    function animateReturnLeg(time) {
+      if (!startTime) startTime = time;
+      const progress = Math.min((time - startTime) / stepDuration, 1);
+      const curX = startX + (targetX - startX) * progress;
+      const curY = startY + (targetY - startY) * progress;
+      token.setAttribute('cx', curX);
+      token.setAttribute('cy', curY);
+
+      if (progress < 1) {
+        requestAnimationFrame(animateReturnLeg);
+      } else {
+        retStep++;
+        state.activePacketTimer = setTimeout(() => animateReturnHop(retStep), 80 / speed);
+      }
+    }
+    requestAnimationFrame(animateReturnLeg);
+  }
+
+  moveToNextHop();
+}
+
+/**
+ * Routing Protocol Engine: Fetch and render routing tables, LSDB, and Bellman-Ford convergence
+ */
+async function loadRoutingTables() {
+  const algoSelect = document.getElementById('routing-algo-select');
+  const algo = algoSelect ? algoSelect.value : 'link_state';
+  const splitHorizon = document.getElementById('chk-split-horizon').checked;
+  const poisonReverse = document.getElementById('chk-poison-reverse').checked;
+
+  const badge = document.getElementById('routing-convergence-badge');
+  const theoryText = document.getElementById('routing-theory-text');
+  const lsdbContainer = document.getElementById('routing-lsdb-container');
+  const lsdbTbody = document.getElementById('routing-lsdb-tbody');
+  const grid = document.getElementById('routing-tables-grid');
+
+  if (!grid) return;
+  grid.innerHTML = '<div class="col-12 text-center text-muted py-3"><span class="spinner-border spinner-border-sm me-1"></span>Computing optimal routing paths...</div>';
+
+  try {
+    const res = await fetch(`/api/networks/${state.networkId}/routing/tables?algorithm=${algo}&split_horizon=${splitHorizon}&poison_reverse=${poisonReverse}`);
+    const data = await res.json();
+    if (!data.success) {
+      grid.innerHTML = `<div class="col-12 alert alert-danger">${data.error || 'Routing computation failed.'}</div>`;
+      return;
+    }
+
+    theoryText.textContent = data.explanation || '';
+    if (data.converged !== undefined) {
+      badge.textContent = data.converged ? `Converged (${(data.convergence_rounds || []).length} Rounds)` : 'Not Converged';
+      badge.className = data.converged ? 'badge bg-success ms-2 font-monospace' : 'badge bg-warning ms-2 font-monospace';
+    } else {
+      badge.textContent = 'LSDB Synchronized (SPF Tree)';
+      badge.className = 'badge bg-primary ms-2 font-monospace';
+    }
+
+    if (algo === 'link_state' && data.lsdb) {
+      lsdbContainer.classList.remove('d-none');
+      lsdbTbody.innerHTML = '';
+      for (const [nodeId, lsa] of Object.entries(data.lsdb)) {
+        const tr = document.createElement('tr');
+        const neighborBadges = (lsa.neighbors || []).map(nb => 
+          `<span class="badge bg-secondary-subtle text-dark border me-1 font-monospace">${escapeHtml(nb.neighbor_name)} (Cost: ${nb.cost}, ${nb.delay_ms}ms)</span>`
+        ).join('') || '<span class="text-muted">Isolated</span>';
+
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(lsa.router_name)}</strong> (ID: ${nodeId})</td>
+          <td class="font-monospace">${escapeHtml(lsa.ip || 'No IP')}</td>
+          <td>${neighborBadges}</td>
+        `;
+        lsdbTbody.appendChild(tr);
+      }
+    } else {
+      lsdbContainer.classList.add('d-none');
+    }
+
+    grid.innerHTML = '';
+    const tables = data.routing_tables || {};
+    const nodeIds = Object.keys(tables);
+
+    if (nodeIds.length === 0) {
+      grid.innerHTML = '<div class="col-12 text-center text-muted py-3">No routing tables generated (No active nodes).</div>';
+      return;
+    }
+
+    nodeIds.forEach(nid => {
+      const tbl = tables[nid];
+      const col = document.createElement('div');
+      col.className = 'col-lg-6 col-md-12 mb-2';
+
+      let rowsHtml = '';
+      (tbl.routes || []).forEach(r => {
+        const isSelf = r.cost === 0;
+        const isUnreachable = r.cost >= 16 && algo === 'rip';
+        rowsHtml += `
+          <tr class="${isUnreachable ? 'table-danger text-muted' : ''}">
+            <td class="font-monospace fw-semibold">${escapeHtml(r.destination_name)}</td>
+            <td class="font-monospace text-muted">${escapeHtml(r.destination_ip || '-')}</td>
+            <td class="font-monospace">${r.next_hop_name ? `<span class="badge bg-light text-dark border">${escapeHtml(r.next_hop_name)}</span>` : '<span class="text-muted">Direct</span>'}</td>
+            <td class="font-monospace fw-bold ${isUnreachable ? 'text-danger' : 'text-primary'}">${isUnreachable ? '16 (∞)' : r.cost}</td>
+            <td class="font-monospace">${r.hops !== undefined ? r.hops : '-'}</td>
+            <td><span class="badge ${isUnreachable ? 'bg-danger' : 'bg-success'}">${isUnreachable ? 'Unreachable' : (r.status || 'Active')}</span></td>
+          </tr>
+        `;
+      });
+
+      col.innerHTML = `
+        <div class="card shadow-sm border h-100">
+          <div class="card-header bg-light py-1.5 px-3 d-flex justify-content-between align-items-center">
+            <span class="fw-bold small text-truncate">
+              <i class="bi bi-router text-primary me-1"></i>${escapeHtml(tbl.node_name)}
+            </span>
+            <span class="badge bg-dark font-monospace" style="font-size:0.7rem;">${escapeHtml(tbl.node_ip || 'Node ' + nid)}</span>
+          </div>
+          <div class="table-responsive p-0">
+            <table class="table table-sm table-hover mb-0" style="font-size:0.75rem;">
+              <thead class="table-light">
+                <tr>
+                  <th>Destination</th>
+                  <th>IP Target</th>
+                  <th>Next Hop</th>
+                  <th>Metric</th>
+                  <th>Hops</th>
+                  <th>State</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml || '<tr><td colspan="6" class="text-center text-muted">No route entries</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      grid.appendChild(col);
+    });
+
+  } catch (err) {
+    grid.innerHTML = `<div class="col-12 alert alert-danger">Error loading routing tables: ${err.message}</div>`;
+  }
+}
+
+function highlightAllOptimalPaths() {
+  state.highlightedLinks = state.connections.filter(c => c.status === 'active').map(c => c.id);
+  renderSvgConnections();
+  setTimeout(() => {
+    state.highlightedLinks = [];
+    renderSvgConnections();
+  }, 3000);
 }

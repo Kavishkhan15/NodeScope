@@ -39,8 +39,10 @@ CREATE TABLE IF NOT EXISTS connections (
     network_id INTEGER NOT NULL,
     device_a_id INTEGER NOT NULL,
     device_b_id INTEGER NOT NULL,
-    link_type TEXT NOT NULL DEFAULT 'wired', -- 'wired' or 'wireless'
+    link_type TEXT NOT NULL DEFAULT 'wired', -- 'wired', 'wireless', 'backbone'
     status TEXT NOT NULL DEFAULT 'active',    -- 'active' or 'down'
+    cost INTEGER NOT NULL DEFAULT 1,          -- Routing metric/cost (1-100)
+    delay_ms INTEGER NOT NULL DEFAULT 2,      -- Simulated latency in ms
     created_at TEXT NOT NULL,
     FOREIGN KEY (network_id) REFERENCES networks(id) ON DELETE CASCADE,
     FOREIGN KEY (device_a_id) REFERENCES devices(id) ON DELETE CASCADE,

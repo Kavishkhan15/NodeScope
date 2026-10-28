@@ -10,7 +10,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.14-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.x-lightgrey.svg?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![SQLite](https://img.shields.io/badge/Database-SQLite3-blue.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
-[![Pytest](https://img.shields.io/badge/Tests-18%2F18%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](tests/)
+[![Pytest](https://img.shields.io/badge/Tests-27%2F27%20Passed-brightgreen.svg?logo=pytest&logoColor=white)](tests/)
 [![Project Report PDF](https://img.shields.io/badge/PDF-Project%20Report-red.svg?logo=adobeacrobatreader&logoColor=white)](docs/NodeScope_Project_Report.pdf)
 [![Viva Script](https://img.shields.io/badge/Docs-Viva%20Presentation%20Script-blue.svg)](docs/PRESENTATION_SCRIPT.md)
 [![Architecture](https://img.shields.io/badge/Docs-Architecture%20Spec-blueviolet.svg)](docs/ARCHITECTURE.md)
@@ -72,13 +72,16 @@ Every network event—DHCP lease grants, link modifications, ICMP ping probes, I
 | Module | Technical Capabilities |
 | :--- | :--- |
 | **1. Network Management** | Create virtual LAN projects with custom CIDR subnets (e.g. `192.168.10.0/24`), netmasks, default gateways, and configurable DHCP pools (`192.168.10.100`–`192.168.10.150`). Persists across restarts in SQLite. |
-| **2. Interactive Topology Workspace** | 3-panel workspace: Left Device Palette, Centre SVG Canvas, Right Device Inspector. Smooth 60fps link dragging, node selection, and zoom/center controls. |
-| **3. Device Inventory & Palette** | Add End Devices (Laptops, Desktops, Phones, Printers, Servers) and Networking Infrastructure (Routers, Core Switches, Wireless APs). Automatically assigns IEEE-compliant unicast MACs (`02:xx:xx:...`). |
-| **4. Static & DHCP Addressing** | Configurable IP allocation mode. Supports static assignment with duplicate detection, as well as a virtual DHCP server that allocates sequential leases, tracks renewals/releases, and flags pool exhaustion. |
-| **5. IP Conflict Detection & Guided Resolver** | Automatically detects when $\ge 2$ active hosts share an IPv4 address. Highlights nodes, flags ambiguous ARP entries, computes free candidate IPs in the subnet, and applies real-time database reconfigurations. |
-| **6. ICMP Ping Simulator** | Deterministic reachability analysis based on device power states, IP validity, same-subnet membership, and Breadth-First Search (BFS) graph path continuity through intermediate switches. |
-| **7. Virtual ARP Table** | Educational Layer 2 (MAC) to Layer 3 (IP) resolution table displaying dynamic bindings and flagging ambiguous mappings caused by IP conflicts. |
-| **8. Resizable Simulation Console** | Collapsible to a compact 38px tab bar or expandable up to 500px using a vertical mouse drag handle, keeping logs constrained to internal scrollbars. |
+| **2. Interactive Topology Workspace** | 3-panel workspace: Left Device Palette & Topology Builder, Centre SVG Canvas, Right Device Inspector. Smooth 60fps link dragging, node selection, and zoom/center controls. |
+| **3. Automated Topology Generator** | Instant 1-click builder for standard network architectures: Star, Bus, Ring, Mesh, Hierarchical Tree, and Hybrid topologies with mathematically computed layout coordinates. |
+| **4. Routing Algorithm Engine** | Simulates Dijkstra / OSPF (Link-State SPF), Bellman-Ford Distance Vector (with Split Horizon and Poison Reverse options), RIP (15-hop limit boundary), and BFS Minimum Hops. Displays router FIB tables and LSDB link-state matrices. |
+| **5. End-to-End Packet Simulator** | Hop-by-hop transmission engine for DATA (UDP), ICMP Ping, and TCP SYN packets. Renders real-time SVG animated packet travel, latency breakdown, and failure diagnostics. |
+| **6. Link Fault Injection & Rerouting** | Click any link to inspect metrics or sever the link (`status='down'`). Watch packets immediately drop or dynamically discover alternate redundant paths in Mesh and Ring topologies! |
+| **7. Device Inventory & Palette** | Add End Devices (Laptops, Desktops, Phones, Printers, Servers) and Networking Infrastructure (Routers, Core Switches, Wireless APs). Automatically assigns IEEE-compliant unicast MACs (`02:xx:xx:...`). |
+| **8. Static & DHCP Addressing** | Configurable IP allocation mode. Supports static assignment with duplicate detection, as well as a virtual DHCP server that allocates sequential leases, tracks renewals/releases, and flags pool exhaustion. |
+| **9. IP Conflict Detection & Guided Resolver** | Automatically detects when >= 2 active hosts share an IPv4 address. Highlights nodes, flags ambiguous ARP entries, computes free candidate IPs in the subnet, and applies real-time database reconfigurations. |
+| **10. Virtual ARP Table** | Educational Layer 2 (MAC) to Layer 3 (IP) resolution table displaying dynamic bindings and flagging ambiguous mappings caused by IP collisions. |
+| **11. Resizable Simulation Console** | Collapsible to a compact 38px tab bar or expandable up to 500px using a vertical mouse drag handle, keeping logs constrained to internal scrollbars. |
 
 ---
 

@@ -24,9 +24,12 @@ def get_db():
 
 def close_db(e=None):
     """Close the database connection at end of request."""
-    db = g.pop('db', None)
-    if db is not None:
-        db.close()
+    try:
+        db = g.pop('db', None)
+        if db is not None:
+            db.close()
+    except Exception:
+        pass
 
 
 def init_db():
@@ -35,6 +38,17 @@ def init_db():
     schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
     with open(schema_path, 'r') as f:
         db.executescript(f.read())
+
+    # Schema migration helper for existing databases: ensure cost and delay_ms columns exist
+    try:
+        cols = [r['name'] for r in db.execute("PRAGMA table_info(connections)").fetchall()]
+        if 'cost' not in cols:
+            db.execute("ALTER TABLE connections ADD COLUMN cost INTEGER NOT NULL DEFAULT 1")
+        if 'delay_ms' not in cols:
+            db.execute("ALTER TABLE connections ADD COLUMN delay_ms INTEGER NOT NULL DEFAULT 2")
+    except Exception:
+        pass
+
     db.commit()
 
 

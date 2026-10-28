@@ -16,6 +16,9 @@ from simulator.conflicts import (
 from simulator.ping import simulate_ping
 from simulator.arp import get_virtual_arp_table
 from simulator.events import record_simulation_event, get_recent_events, get_active_alerts
+from simulator.routing import calculate_route_dispatch, simulate_distance_vector, simulate_link_state, get_network_graph
+from simulator.packet import transmit_packet
+from simulator.topology_builder import generate_topology
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -298,17 +301,64 @@ def add_connection(network_id: int):
     if existing:
         return jsonify({'success': False, 'error': 'A connection already exists between these devices.'}), 400
 
+    cost = int(data.get('cost', 1))
+    delay_ms = int(data.get('delay_ms', 2))
+
     cursor = db.execute("""
-        INSERT INTO connections (network_id, device_a_id, device_b_id, link_type, status, created_at)
-        VALUES (?, ?, ?, ?, 'active', ?)
-    """, (network_id, dev_a_id, dev_b_id, link_type, _now()))
+        INSERT INTO connections (network_id, device_a_id, device_b_id, link_type, status, cost, delay_ms, created_at)
+        VALUES (?, ?, ?, ?, 'active', ?, ?, ?)
+    """, (network_id, dev_a_id, dev_b_id, link_type, cost, delay_ms, _now()))
     conn_id = cursor.lastrowid
 
     record_simulation_event(db, network_id, 'connection', 'info',
-                            f"Connected '{dev_a['name']}' to '{dev_b['name']}' ({link_type} link).")
+                            f"Connected '{dev_a['name']}' to '{dev_b['name']}' ({link_type} link, cost {cost}).")
     db.commit()
 
     return jsonify({'success': True, 'connection_id': conn_id, 'message': 'Devices connected.'})
+
+
+@api_bp.route('/connections/<int:conn_id>', methods=['PUT'])
+def update_connection(conn_id: int):
+    """Update connection link properties: toggle status (active/down), cost metric, delay."""
+    data = request.get_json() or {}
+    db = get_db()
+    conn = db.execute("SELECT * FROM connections WHERE id = ?", (conn_id,)).fetchone()
+    if not conn:
+        return jsonify({'success': False, 'error': 'Connection not found.'}), 404
+
+    network_id = conn['network_id']
+    status = data.get('status', conn['status'])
+    cost = int(data.get('cost', conn['cost'] if 'cost' in conn.keys() else 1))
+    delay_ms = int(data.get('delay_ms', conn['delay_ms'] if 'delay_ms' in conn.keys() else 2))
+    link_type = data.get('link_type', conn['link_type'])
+
+    # Validate cost and delay
+    cost = max(1, min(cost, 100))
+    delay_ms = max(1, min(delay_ms, 500))
+    if status not in ('active', 'down'):
+        status = 'active'
+
+    db.execute("""
+        UPDATE connections
+        SET status = ?, cost = ?, delay_ms = ?, link_type = ?
+        WHERE id = ?
+    """, (status, cost, delay_ms, link_type, conn_id))
+
+    dev_a = db.execute("SELECT name FROM devices WHERE id = ?", (conn['device_a_id'],)).fetchone()
+    dev_b = db.execute("SELECT name FROM devices WHERE id = ?", (conn['device_b_id'],)).fetchone()
+    name_a = dev_a['name'] if dev_a else f"Node {conn['device_a_id']}"
+    name_b = dev_b['name'] if dev_b else f"Node {conn['device_b_id']}"
+
+    if status != conn['status']:
+        lvl = 'warning' if status == 'down' else 'success'
+        msg = f"Link '{name_a} ↔ {name_b}' is now {status.upper()} ({'Cable severed / down' if status == 'down' else 'Restored'})."
+        record_simulation_event(db, network_id, 'connection', lvl, msg)
+    elif cost != (conn['cost'] if 'cost' in conn.keys() else 1):
+        record_simulation_event(db, network_id, 'connection', 'info', f"Link '{name_a} ↔ {name_b}' cost updated to {cost}.")
+
+    db.commit()
+    updated = db.execute("SELECT * FROM connections WHERE id = ?", (conn_id,)).fetchone()
+    return jsonify({'success': True, 'connection': dict(updated)})
 
 
 @api_bp.route('/connections/<int:conn_id>', methods=['DELETE'])
@@ -482,3 +532,121 @@ def dismiss_alert(alert_id: int):
     db.execute("UPDATE alerts SET status = 'dismissed' WHERE id = ?", (alert_id,))
     db.commit()
     return jsonify({'success': True, 'message': 'Alert dismissed.'})
+
+
+# ----------------------------------------------------------------------
+# Automated Topology Builder API
+# ----------------------------------------------------------------------
+
+@api_bp.route('/networks/<int:network_id>/topology/generate', methods=['POST'])
+def generate_network_topology(network_id: int):
+    """Generate requested topology: Star, Bus, Ring, Mesh, Tree, Hybrid."""
+    data = request.get_json() or {}
+    topology_type = data.get('topology_type', 'star')
+    options = data.get('options', {})
+
+    db = get_db()
+    net = db.execute("SELECT * FROM networks WHERE id = ?", (network_id,)).fetchone()
+    if not net:
+        return jsonify({'success': False, 'error': 'Network not found.'}), 404
+
+    res = generate_topology(db, network_id, topology_type, options)
+    record_simulation_event(db, network_id, 'network', 'info', f"Auto-generated {res['title']}.")
+
+    return jsonify({
+        'success': True,
+        'result': res,
+        'message': res['description']
+    })
+
+
+# ----------------------------------------------------------------------
+# Routing Algorithm Simulation API
+# ----------------------------------------------------------------------
+
+@api_bp.route('/networks/<int:network_id>/routing/calculate', methods=['POST'])
+def calculate_network_route(network_id: int):
+    """Calculate route between two devices using selected algorithm."""
+    data = request.get_json() or {}
+    src_id = data.get('source_id')
+    dst_id = data.get('destination_id')
+    algorithm = data.get('algorithm', 'dijkstra')
+    options = data.get('options', {})
+
+    if not src_id or not dst_id:
+        return jsonify({'success': False, 'error': 'Source and destination devices are required.'}), 400
+
+    db = get_db()
+    res = calculate_route_dispatch(db, network_id, int(src_id), int(dst_id), algorithm=algorithm, options=options)
+    return jsonify({'success': True, 'route': res})
+
+
+@api_bp.route('/networks/<int:network_id>/routing/tables', methods=['GET'])
+def get_routing_tables(network_id: int):
+    """Retrieve full routing tables and LSDB for network routers."""
+    algorithm = request.args.get('algorithm', 'distance_vector').lower()
+    split_horizon = request.args.get('split_horizon', 'true').lower() == 'true'
+    poison_reverse = request.args.get('poison_reverse', 'false').lower() == 'true'
+    count_to_infinity = request.args.get('count_to_infinity', 'false').lower() == 'true'
+
+    db = get_db()
+    devices, edges, adj = get_network_graph(db, network_id)
+
+    if algorithm == 'link_state':
+        res = simulate_link_state(devices, adj)
+        return jsonify({
+            'success': True,
+            'algorithm': 'link_state',
+            'routing_tables': res['routing_tables'],
+            'lsdb': res['lsdb'],
+            'explanation': res['explanation']
+        })
+    elif algorithm == 'rip':
+        rip_adj = {u: [dict(e, cost=1) for e in edges_list] for u, edges_list in adj.items()}
+        res = simulate_distance_vector(devices, rip_adj, options={'is_rip': True, 'max_metric': 16})
+        return jsonify({
+            'success': True,
+            'algorithm': 'rip',
+            'routing_tables': res['routing_tables'],
+            'convergence_rounds': res['convergence_rounds'],
+            'converged': res['converged'],
+            'explanation': "RIP maintains hop-count vector tables where metric represents hop distance (Max: 15, 16 = ∞ Unreachable)."
+        })
+    else:
+        # Distance Vector / Bellman-Ford
+        opts = {
+            'split_horizon': split_horizon,
+            'poison_reverse': poison_reverse,
+            'count_to_infinity': count_to_infinity
+        }
+        res = simulate_distance_vector(devices, adj, options=opts)
+        return jsonify({
+            'success': True,
+            'algorithm': 'distance_vector',
+            'routing_tables': res['routing_tables'],
+            'convergence_rounds': res['convergence_rounds'],
+            'converged': res['converged'],
+            'explanation': "Distance Vector uses Bellman-Ford equation (dx(y) = min_v { c(x,v) + dv(y) }). Routers share distance vectors until convergence."
+        })
+
+
+# ----------------------------------------------------------------------
+# End-to-End Packet Transmission Simulator API
+# ----------------------------------------------------------------------
+
+@api_bp.route('/networks/<int:network_id>/packet/transmit', methods=['POST'])
+def transmit_network_packet(network_id: int):
+    """Execute end-to-end packet transmission with hop telemetry and diagnostics."""
+    data = request.get_json() or {}
+    src_id = data.get('source_id')
+    dst_id = data.get('destination_id')
+    packet_type = data.get('packet_type', 'DATA')
+    algorithm = data.get('algorithm', 'dijkstra')
+    options = data.get('options', {})
+
+    if not src_id or not dst_id:
+        return jsonify({'success': False, 'error': 'Both source and destination must be selected.'}), 400
+
+    db = get_db()
+    result = transmit_packet(db, network_id, int(src_id), int(dst_id), packet_type=packet_type, algorithm=algorithm, options=options)
+    return jsonify({'success': True, 'result': result})
