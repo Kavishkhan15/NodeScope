@@ -1,5 +1,10 @@
 # NodeScope — Interactive Virtual LAN Simulator & Troubleshooting Lab
 
+🌐 **Live Demo:** https://your-project-name.onrender.com
+
+
+💻 **GitHub Repository:** https://github.com/Kavishkhan15/NodeScope
+
 <div align="center">
 
 <img src="static/img/nodescope-logo.svg" alt="NodeScope Logo" width="200" />
