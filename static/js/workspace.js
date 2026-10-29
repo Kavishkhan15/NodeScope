@@ -1345,7 +1345,6 @@ function openLinkModal(connId) {
   document.getElementById('modal-link-id').value = conn.id;
   document.getElementById('modal-link-nodes').textContent = `${nameA} ↔ ${nameB}`;
   document.getElementById('modal-link-cost').value = conn.cost || 1;
-  document.getElementById('modal-link-delay').value = conn.delay_ms || 2;
   document.getElementById('modal-link-type').value = conn.link_type || 'wired';
 
   const sw = document.getElementById('modal-link-status-switch');
@@ -1376,9 +1375,10 @@ function onModalLinkStatusToggle(isActive) {
 
 async function saveLinkModalChanges() {
   const connId = parseInt(document.getElementById('modal-link-id').value, 10);
+  const conn = state.connections.find(c => c.id === connId);
   const isActive = document.getElementById('modal-link-status-switch').checked;
   const cost = parseInt(document.getElementById('modal-link-cost').value, 10) || 1;
-  const delay = parseInt(document.getElementById('modal-link-delay').value, 10) || 2;
+  const delay = conn ? (conn.delay_ms || 2) : 2;
   const linkType = document.getElementById('modal-link-type').value;
 
   try {
